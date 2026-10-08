@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// Only the two people listed below can read or write anything.
+// Use lowercase emails, exactly as you signed up with them.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isUs() {
+      return request.auth != null
+        && request.auth.token.email.lower() in [
+          'jacobseither@gmail.com',
+          'GIRLFRIEND_EMAIL_HERE'
+        ];
+    }
+
+    match /spaces/{space}/{collection}/{id} {
+      allow read, write: if isUs();
+    }
+  }
+}
