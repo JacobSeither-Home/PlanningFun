@@ -11,4 +11,5 @@ export const firebaseConfig = {
   appId: '1:397750274410:web:e57398c9fb90218e7efd13',
 }
 
-export const firebaseEnabled = Boolean(firebaseConfig.apiKey)
+// VITE_DEMO=1 forces demo mode (used for local screenshots and testing).
+export const firebaseEnabled = Boolean(firebaseConfig.apiKey) && !import.meta.env.VITE_DEMO

@@ -66,7 +66,7 @@ export default function DrinkSheet({ drink, drinks, kinds, initialKind, onClose 
         <div className="chips scroll" role="radiogroup" aria-label="Drink type">
           {kinds.map((k) => (
             <button key={k.id} type="button" role="radio" aria-checked={f.kind === k.id}
-              className="chip" style={{ '--cat': 'var(--grape)' }} onClick={() => setF({ ...f, kind: k.id })}>
+              className="chip" style={{ '--cat': 'var(--c-flamingo)' }} onClick={() => setF({ ...f, kind: k.id })}>
               <span aria-hidden="true">{k.emoji}</span> {k.label}
             </button>
           ))}

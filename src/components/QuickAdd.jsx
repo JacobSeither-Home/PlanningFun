@@ -61,7 +61,7 @@ export default function QuickAdd({ initial, onClose, onCreated }) {
           <div className="chips" role="radiogroup" aria-label="Type">
             {[['movie', '🎬 Movie'], ['show', '📺 Show']].map(([id, l]) => (
               <button key={id} type="button" role="radio" aria-checked={watchKind === id}
-                className="chip" style={{ '--cat': 'var(--grape)' }} onClick={() => setWatchKind(id)}>{l}</button>
+                className="chip" style={{ '--cat': 'var(--c-flamingo)' }} onClick={() => setWatchKind(id)}>{l}</button>
             ))}
           </div>
         )}

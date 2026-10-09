@@ -1,10 +1,10 @@
 export const CATEGORIES = [
-  { id: 'out', label: 'Out & about', emoji: '🎡', color: 'var(--sky)' },
-  { id: 'food', label: 'Food & drink', emoji: '🍜', color: 'var(--mango)' },
-  { id: 'trip', label: 'Trips', emoji: '🧳', color: 'var(--mint)' },
-  { id: 'home', label: 'At home', emoji: '🛋️', color: 'var(--grape)' },
-  { id: 'active', label: 'Active', emoji: '🥾', color: 'var(--coral)' },
-  { id: 'event', label: 'Shows & events', emoji: '🎟️', color: 'var(--pink)' },
+  { id: 'out', label: 'Out & about', emoji: '🎡', color: 'var(--c-jade)' },
+  { id: 'food', label: 'Food & drink', emoji: '🍜', color: 'var(--c-flamingo)' },
+  { id: 'trip', label: 'Trips', emoji: '🧳', color: 'var(--c-teal)' },
+  { id: 'home', label: 'At home', emoji: '🛋️', color: 'var(--c-plum)' },
+  { id: 'active', label: 'Active', emoji: '🥾', color: 'var(--c-moss)' },
+  { id: 'event', label: 'Shows & events', emoji: '🎟️', color: 'var(--c-gold)' },
 ]
 export const catOf = (id) => CATEGORIES.find((c) => c.id === id) || CATEGORIES[0]
 

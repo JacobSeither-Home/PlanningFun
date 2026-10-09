@@ -37,7 +37,7 @@ export default function Surprise({ kind, items, onClose, onPick }) {
 
   const item = items[idx]
   if (!item) return null
-  const color = kind === 'idea' ? catOf(item.category).color : 'var(--grape)'
+  const color = kind === 'idea' ? catOf(item.category).color : 'var(--c-plum)'
   const emoji = kind === 'idea' ? catOf(item.category).emoji : item.kind === 'show' ? '📺' : '🎬'
 
   return (

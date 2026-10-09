@@ -44,7 +44,7 @@ export default function DrinksView({ drinks, kinds, kind, setKind, onOpen }) {
           <button className="chip" role="radio" aria-checked={!kind} onClick={() => setKind(null)} style={{ '--cat': 'var(--ink)' }}>All</button>
           {kinds.map((k) => (
             <button key={k.id} className="chip" role="radio" aria-checked={kind === k.id}
-              style={{ '--cat': 'var(--grape)' }} onClick={() => setKind(kind === k.id ? null : k.id)}>
+              style={{ '--cat': 'var(--c-flamingo)' }} onClick={() => setKind(kind === k.id ? null : k.id)}>
               <span aria-hidden="true">{k.emoji}</span> {k.label}
             </button>
           ))}
