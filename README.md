@@ -2,7 +2,7 @@
 
 Jacob's and his girlfriend's shared planner: save activity ideas, put them on a calendar, plan packing, reservations and meals for each one, and keep a watch list of movies and shows.
 
-**Live app:** https://jacobseither-home.github.io/planningfun/ (after GitHub Pages is turned on, see below)
+**Live app:** https://jacobseither-home.github.io/PlanningFun/
 
 ## What's in it
 
@@ -23,9 +23,9 @@ Jacob's and his girlfriend's shared planner: save activity ideas, put them on a 
 | Data | Firestore, shared under `spaces/main/` (activities, watch, drinks, drinkKinds), cached offline on each device |
 | Hosting | GitHub Pages, deployed by `.github/workflows/deploy.yml` on every push to `main` |
 
-Until `src/lib/firebaseConfig.js` is filled in, the app runs in **demo mode** and saves to the current browser only.
+Firebase project: `planningfun` (Spark/free plan). If `src/lib/firebaseConfig.js` is ever emptied, the app falls back to **demo mode** and saves to the current browser only.
 
-## One-time setup
+## One-time setup (done October 2026, kept for reference)
 
 ### 1. Turn on GitHub Pages
 Repo → Settings → Pages → Source: **GitHub Actions**. Then re-run the latest "Deploy to GitHub Pages" workflow (Actions tab), or push any commit.
@@ -35,7 +35,7 @@ Repo → Settings → Pages → Source: **GitHub Actions**. Then re-run the late
 2. **Authentication** → Get started → Sign-in method → enable **Email/Password**.
 3. Authentication → Settings → Authorized domains → add `jacobseither-home.github.io`.
 4. **Firestore Database** → Create database → production mode → region `us-central` (or nearest).
-5. Firestore → **Rules** → paste the contents of `firestore.rules`, replacing `GIRLFRIEND_EMAIL_HERE` with her email → Publish.
+5. Firestore → **Rules** → paste the contents of `firestore.rules` → Publish. To let someone else in, add their email there and publish again.
 6. Project settings (gear) → Your apps → **Web** (`</>`) → register `planningfun` → copy the `firebaseConfig` values into `src/lib/firebaseConfig.js` and commit.
 
 The web config identifies the project; it isn't a password. Who can read and write data is enforced by the Firestore rules, which only allow the two listed emails.
