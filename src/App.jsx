@@ -8,10 +8,14 @@ import WatchView from './components/WatchView'
 import QuickAdd from './components/QuickAdd'
 import ActivitySheet from './components/ActivitySheet'
 import Surprise from './components/Surprise'
+import DrinksView from './components/DrinksView'
+import DrinkSheet from './components/DrinkSheet'
+import { allKinds } from './lib/drinks'
 
 const TABS = [
   { id: 'ideas', label: 'Ideas', icon: '💡' },
   { id: 'calendar', label: 'Calendar', icon: '📅' },
+  { id: 'drinks', label: 'Drinks', icon: '🥃' },
   { id: 'watch', label: 'Watch', icon: '🍿' },
 ]
 
@@ -45,6 +49,11 @@ function Shell({ user }) {
   const [surprise, setSurprise] = useState(null) // { kind, items }
   const { rows: activities, error } = useCollection('activities')
   const { rows: watch } = useCollection('watch')
+  const { rows: drinks } = useCollection('drinks')
+  const { rows: customKinds } = useCollection('drinkKinds')
+  const kinds = useMemo(() => allKinds(customKinds), [customKinds])
+  const [drinkSheet, setDrinkSheet] = useState(null) // { id } to edit, {} to add
+  const [drinkKind, setDrinkKind] = useState(null) // Drinks tab filter; new ratings start with it
   const be = useBackend()
 
   useEffect(() => {
@@ -56,17 +65,22 @@ function Shell({ user }) {
 
   const open = useMemo(() => activities.find((a) => a.id === openId), [activities, openId])
 
+  const addNew = () => {
+    if (tab === 'drinks') setDrinkSheet({})
+    else setAdding({ kind: tab === 'watch' ? 'watch' : 'idea' })
+  }
+
   // Keyboard: "n" adds something new
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key !== 'n' || e.metaKey || e.ctrlKey || adding || openId || surprise) return
+      if (e.key !== 'n' || e.metaKey || e.ctrlKey || adding || openId || surprise || drinkSheet) return
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return
       e.preventDefault()
-      setAdding({ kind: tab === 'watch' ? 'watch' : 'idea' })
+      addNew()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [tab, adding, openId, surprise])
+  }, [tab, adding, openId, surprise, drinkSheet])
 
   return (
     <div className="shell">
@@ -112,6 +126,9 @@ function Shell({ user }) {
             onAdd={(date) => setAdding({ kind: 'idea', date })}
           />
         )}
+        {tab === 'drinks' && (
+          <DrinksView drinks={drinks} kinds={kinds} kind={drinkKind} setKind={setDrinkKind} onOpen={(id) => setDrinkSheet({ id })} />
+        )}
         {tab === 'watch' && (
           <WatchView items={watch} onSurprise={(items) => setSurprise({ kind: 'watch', items })} />
         )}
@@ -119,8 +136,8 @@ function Shell({ user }) {
 
       <button
         className="fab"
-        onClick={() => setAdding({ kind: tab === 'watch' ? 'watch' : 'idea' })}
-        aria-label={tab === 'watch' ? 'Add to watch list' : 'Add an idea'}
+        onClick={addNew}
+        aria-label={tab === 'watch' ? 'Add to watch list' : tab === 'drinks' ? 'Rate a drink' : 'Add an idea'}
         title="Add (N)"
       >
         <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" /></svg>
@@ -131,6 +148,16 @@ function Shell({ user }) {
           initial={adding}
           onClose={() => setAdding(null)}
           onCreated={(id, kind) => { setAdding(null); if (kind === 'idea' && id && adding.openAfter) setOpenId(id) }}
+        />
+      )}
+      {drinkSheet && (
+        <DrinkSheet
+          key={drinkSheet.id || 'new'}
+          drink={drinkSheet.id ? drinks.find((d) => d.id === drinkSheet.id) : null}
+          drinks={drinks}
+          kinds={kinds}
+          initialKind={drinkKind}
+          onClose={() => setDrinkSheet(null)}
         />
       )}
       {open && <ActivitySheet activity={open} onClose={() => setOpenId(null)} onOpen={setOpenId} />}

@@ -9,6 +9,7 @@ Jacob's and his girlfriend's shared planner: save activity ideas, put them on a 
 - **Ideas.** Saved activities shown as ticket stubs, colored by category. Search, filter, and "Surprise us" to pick a random idea.
 - **Calendar.** Month view. On a computer, drag ideas from the Someday tray onto a day, between days, or back to the tray. On a phone, tap a day, then "Pick an idea" or "New".
 - **Activity details.** Date, time, place, cost, link and notes, plus Packing, Reservations and Meals checklists. "Do it again" copies an activity with its checklists reset.
+- **Drinks.** Rate drinks you order around town from 1 (gross) to 10 (awesome). Each of you rates separately and the list ranks by your average. Types start with Old Fashioned (with spirit) and Beer (with type), and you can add more, like Sazerac.
 - **Watch list.** Quick-add movies and shows, note where to watch them, check them off, and "Pick for tonight".
 - **Keyboard.** Press N anywhere to add something.
 
@@ -19,7 +20,7 @@ Jacob's and his girlfriend's shared planner: save activity ideas, put them on a 
 | App | React 18 + Vite, plain CSS |
 | Install | PWA via vite-plugin-pwa (Add to Home Screen on iPhone) |
 | Sign-in | Firebase Auth, email and password |
-| Data | Firestore, shared under `spaces/main/`, cached offline on each device |
+| Data | Firestore, shared under `spaces/main/` (activities, watch, drinks, drinkKinds), cached offline on each device |
 | Hosting | GitHub Pages, deployed by `.github/workflows/deploy.yml` on every push to `main` |
 
 Until `src/lib/firebaseConfig.js` is filled in, the app runs in **demo mode** and saves to the current browser only.

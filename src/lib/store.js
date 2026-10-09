@@ -23,6 +23,7 @@ function demoBackend() {
   return {
     mode: 'demo',
     onUser(cb) { cb(user); return () => {} },
+    me: () => ({ uid: user.uid, name: user.displayName }),
     async signIn() {}, async signUp() {}, async signOut() {},
     subscribe(c, cb) {
       ;(listeners[c] ||= []).push(cb)
@@ -35,10 +36,22 @@ function demoBackend() {
       return row.id
     },
     async update(c, id, patch) {
-      write(c, read(c).map((r) => (r.id === id ? { ...r, ...patch, updatedAt: Date.now() } : r)))
+      write(c, read(c).map((r) => (r.id === id ? applyPatch(r, { ...patch, updatedAt: Date.now() }) : r)))
     },
     async remove(c, id) { write(c, read(c).filter((r) => r.id !== id)) },
   }
+}
+
+// Same semantics as Firestore updateDoc: 'a.b' keys set a nested field.
+function applyPatch(row, patch) {
+  const out = structuredClone(row)
+  for (const [k, v] of Object.entries(patch)) {
+    const path = k.split('.')
+    let o = out
+    path.slice(0, -1).forEach((p) => { o = o[p] = { ...(o[p] || {}) } })
+    o[path.at(-1)] = v
+  }
+  return out
 }
 
 /* ---------------- firebase backend ---------------- */
@@ -64,6 +77,10 @@ async function firebaseBackend() {
   return {
     mode: 'firebase',
     onUser: (cb) => onAuthStateChanged(auth, cb),
+    me: () => {
+      const u = auth.currentUser
+      return u ? { uid: u.uid, name: u.displayName || (u.email || '').split('@')[0] } : null
+    },
     signIn: (email, pw) => signInWithEmailAndPassword(auth, email, pw),
     async signUp(email, pw, name) {
       const cred = await createUserWithEmailAndPassword(auth, email, pw)
