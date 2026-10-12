@@ -21,6 +21,8 @@ Jacob's and his girlfriend's shared planner: save activity ideas, put them on a 
 - **Drink photos.** Add a photo when rating a drink (camera or library). It's shrunk on the phone (about 250 KB) and stored in Firestore: a small thumbnail on the drink, the full photo in its own `photos` document loaded only when you open the drink. Settings shows the count and how much of the free 1 GB is used. No Cloud Storage bucket is needed (that would require the Blaze plan).
 - **Drinks by place.** Drinks → Places ranks bars by your average rating, with their best drink, plus a shared Want to try list.
 - **Monthly colors.** Each month has its own accent pair and wallpaper tint (follows the month shown on the calendar). The menu, text and category colors stay fixed. Turn off per device in Settings (gear icon, or Settings in the sidebar).
+- **Appearance.** Settings → Appearance: Auto (follows the device), Light, or Dark (the deep plum-and-emerald look). Per device.
+- **Watch rows.** Dark marquee cards with the poster running edge to edge, top to bottom, on the left.
 - **Keyboard.** Press N anywhere to add something.
 
 ## Stack

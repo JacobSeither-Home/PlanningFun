@@ -103,13 +103,14 @@ function WatchRow({ item: i }) {
   useEffect(() => setWhere(i.where || ''), [i.where])
   return (
     <li className={`watch-row${i.watched ? ' is-done' : ''}`}>
+      {/* poster runs the full height of the row, edge to edge */}
+      {i.poster
+        ? <img className="watch-poster" src={poster(i.poster, 'w154')} alt="" loading="lazy" />
+        : <span className="watch-poster blank" aria-label={i.kind === 'show' ? 'Show' : 'Movie'}>{i.kind === 'show' ? '📺' : '🎬'}</span>}
       <label className="check">
         <input type="checkbox" checked={i.watched} onChange={() => be.update('watch', i.id, { watched: !i.watched })} />
         <span className="box" aria-hidden="true" />
-        {i.poster
-          ? <img className="watch-poster" src={poster(i.poster)} alt="" width="30" height="45" loading="lazy" />
-          : <span className="watch-kind" aria-label={i.kind === 'show' ? 'Show' : 'Movie'}>{i.kind === 'show' ? '📺' : '🎬'}</span>}
-        <span className="check-text">{i.title}{i.year && <span className="muted small"> {i.year}</span>}</span>
+        <span className="check-text">{i.title}{i.year && <span className="watch-year"> {i.year}</span>}</span>
       </label>
       <input className="where" value={where} placeholder="Where to watch" aria-label={`Where to watch ${i.title}`}
         onChange={(e) => setWhere(e.target.value)}

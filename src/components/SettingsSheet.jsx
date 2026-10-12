@@ -5,7 +5,7 @@ import { MONTH_THEMES } from '../lib/theme'
 import { SECTIONS } from '../lib/constants'
 import { search, details } from '../lib/tmdb'
 
-export default function SettingsSheet({ user, monthColors, setMonthColors, templates, settings, watch, drinks = [], onClose }) {
+export default function SettingsSheet({ user, monthColors, setMonthColors, appearance, setAppearance, templates, settings, watch, drinks = [], onClose }) {
   const be = useBackend()
   const now = MONTH_THEMES[new Date().getMonth()]
   const savedKey = settings?.tmdbKey || ''
@@ -47,6 +47,16 @@ export default function SettingsSheet({ user, monthColors, setMonthColors, templ
   return (
     <Sheet title="Settings" onClose={onClose}>
       <h2 className="sheet-title">Settings</h2>
+
+      <section className="set-sec">
+        <h3>Appearance</h3>
+        <p className="muted small">Dark is the deep plum-and-emerald look. Auto follows this device’s setting. Applies on this device only.</p>
+        <div className="seg small" role="radiogroup" aria-label="Appearance">
+          {[['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => (
+            <button key={v} role="radio" aria-checked={appearance === v} onClick={() => setAppearance(v)}>{l}</button>
+          ))}
+        </div>
+      </section>
 
       <section className="set-sec">
         <h3>Monthly colors</h3>

@@ -13,7 +13,7 @@ import DrinkSheet from './components/DrinkSheet'
 import BusySheet from './components/BusySheet'
 import { allKinds } from './lib/drinks'
 import SettingsSheet from './components/SettingsSheet'
-import { applyTheme, loadMonthColors, saveMonthColors, themeFor } from './lib/theme'
+import { applyAppearance, applyTheme, loadAppearance, loadMonthColors, saveAppearance, saveMonthColors, themeFor } from './lib/theme'
 
 const TABS = [
   { id: 'ideas', label: 'Ideas', icon: '💡' },
@@ -71,7 +71,9 @@ function Shell({ user }) {
   const setMonthColors = (on) => { saveMonthColors(on); setMonthColorsState(on) }
   const [calMonth, setCalMonth] = useState(() => new Date().getMonth())
   const themeMonth = tab === 'calendar' ? calMonth : new Date().getMonth()
-  useEffect(() => { applyTheme(themeFor(themeMonth, monthColors)) }, [themeMonth, monthColors])
+  const [appearance, setAppearanceState] = useState(loadAppearance)
+  const setAppearance = (v) => { saveAppearance(v); applyAppearance(v); setAppearanceState(v) }
+  useEffect(() => { applyTheme(themeFor(themeMonth, monthColors)) }, [themeMonth, monthColors, appearance])
 
   useEffect(() => {
     const onHash = () => setTab(tabFromHash())
@@ -193,7 +195,7 @@ function Shell({ user }) {
         />
       )}
       {showSettings && (
-        <SettingsSheet user={user} monthColors={monthColors} setMonthColors={setMonthColors}
+        <SettingsSheet user={user} monthColors={monthColors} setMonthColors={setMonthColors} appearance={appearance} setAppearance={setAppearance}
           templates={templates} settings={settings} watch={watch} drinks={drinks} onClose={() => setShowSettings(false)} />
       )}
       {open && <ActivitySheet templates={templates} activity={open} onClose={() => setOpenId(null)} onOpen={setOpenId} />}

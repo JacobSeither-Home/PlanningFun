@@ -28,6 +28,23 @@ export function themeFor(month, enabled) {
   return enabled ? MONTH_THEMES[month] : DEFAULT_THEME
 }
 
+// Appearance: 'auto' follows the phone/computer setting; 'light' or 'dark' forces it.
+export const loadAppearance = () => {
+  try { return localStorage.getItem('pf:appearance') || 'auto' } catch { return 'auto' }
+}
+export const saveAppearance = (v) => {
+  try { localStorage.setItem('pf:appearance', v) } catch { /* private mode */ }
+}
+export function applyAppearance(v) {
+  const root = document.documentElement
+  if (v === 'light' || v === 'dark') root.setAttribute('data-theme', v)
+  else root.removeAttribute('data-theme')
+}
+const isDark = () => {
+  const forced = document.documentElement.getAttribute('data-theme')
+  return forced ? forced === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches
+}
+
 export function applyTheme(t) {
   const s = document.documentElement.style
   s.setProperty('--m-a', t.a)
@@ -36,9 +53,11 @@ export function applyTheme(t) {
   s.setProperty('--m-dark', t.dark)
   s.setProperty('--fan', fan(t.b))
   // keep the phone's status bar in step with the page
-  const dark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  const dark = isDark()
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
-    m.setAttribute('content', m.media.includes('dark') ? t.dark : t.light)
+    // with a forced appearance, both tags carry the same color
+    const forced = document.documentElement.getAttribute('data-theme')
+    m.setAttribute('content', forced ? (dark ? t.dark : t.light) : m.media.includes('dark') ? t.dark : t.light)
   })
   return dark
 }
