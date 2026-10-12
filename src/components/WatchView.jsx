@@ -1,19 +1,37 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useBackend } from '../lib/hooks'
+import { autoMatch, details, poster, search } from '../lib/tmdb'
 
-export default function WatchView({ items, onSurprise }) {
+export default function WatchView({ items, onSurprise, tmdbKey }) {
   const be = useBackend()
   const [title, setTitle] = useState('')
   const [kind, setKind] = useState('movie')
   const [tab, setTab] = useState('todo')
   const [filter, setFilter] = useState('all')
 
+  const [hits, setHits] = useState([])
+  const timer = useRef()
+  // suggestions from TMDB as you type (only when a key is set in Settings)
+  useEffect(() => {
+    clearTimeout(timer.current)
+    const q = title.trim()
+    if (!tmdbKey || q.length < 2) { setHits([]); return }
+    timer.current = setTimeout(() => { search(tmdbKey, q).then(setHits).catch(() => setHits([])) }, 300)
+    return () => clearTimeout(timer.current)
+  }, [title, tmdbKey])
+
   const add = async (e) => {
     e.preventDefault()
     const t = title.trim()
     if (!t) return
-    setTitle('')
-    await be.add('watch', { title: t, kind, where: '', watched: false })
+    setTitle(''); setHits([])
+    const id = await be.add('watch', { title: t, kind, where: '', watched: false })
+    autoMatch(be, tmdbKey, id, t)
+  }
+  const addHit = async (h) => {
+    setTitle(''); setHits([])
+    const d = await details(tmdbKey, h).catch(() => ({ kind: h.mediaType === 'tv' ? 'show' : 'movie' }))
+    await be.add('watch', { title: h.title, where: '', watched: false, ...d })
   }
 
   const todo = items.filter((i) => !i.watched)
@@ -40,6 +58,18 @@ export default function WatchView({ items, onSurprise }) {
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add a title and press Enter"
           aria-label="Title to add" enterKeyHint="done" />
         <button className="btn primary small" disabled={!title.trim()}>Add</button>
+        {hits.length > 0 && (
+          <ul className="tmdb-hits" aria-label="Matches">
+            {hits.map((h) => (
+              <li key={h.mediaType + h.tmdbId}>
+                <button type="button" onClick={() => addHit(h)}>
+                  {poster(h.poster) ? <img src={poster(h.poster)} alt="" width="34" height="51" loading="lazy" /> : <span className="poster-blank" aria-hidden="true">{h.mediaType === 'tv' ? '📺' : '🎬'}</span>}
+                  <span><b>{h.title}</b> <span className="muted">{[h.year, h.mediaType === 'tv' ? 'Show' : 'Movie'].filter(Boolean).join(', ')}</span></span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </form>
 
       <div className="watch-tools">
@@ -70,13 +100,16 @@ export default function WatchView({ items, onSurprise }) {
 function WatchRow({ item: i }) {
   const be = useBackend()
   const [where, setWhere] = useState(i.where || '')
+  useEffect(() => setWhere(i.where || ''), [i.where])
   return (
     <li className={`watch-row${i.watched ? ' is-done' : ''}`}>
       <label className="check">
         <input type="checkbox" checked={i.watched} onChange={() => be.update('watch', i.id, { watched: !i.watched })} />
         <span className="box" aria-hidden="true" />
-        <span className="watch-kind" aria-label={i.kind === 'show' ? 'Show' : 'Movie'}>{i.kind === 'show' ? '📺' : '🎬'}</span>
-        <span className="check-text">{i.title}</span>
+        {i.poster
+          ? <img className="watch-poster" src={poster(i.poster)} alt="" width="30" height="45" loading="lazy" />
+          : <span className="watch-kind" aria-label={i.kind === 'show' ? 'Show' : 'Movie'}>{i.kind === 'show' ? '📺' : '🎬'}</span>}
+        <span className="check-text">{i.title}{i.year && <span className="muted small"> {i.year}</span>}</span>
       </label>
       <input className="where" value={where} placeholder="Where to watch" aria-label={`Where to watch ${i.title}`}
         onChange={(e) => setWhere(e.target.value)}

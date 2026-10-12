@@ -3,12 +3,14 @@ import { format, parseISO } from 'date-fns'
 import Sheet from './Sheet'
 import TimePicker from './TimePicker'
 import { optionText } from './Ticket'
+import Votes from './Votes'
+import { openIcs } from '../lib/ics'
 import { useBackend } from '../lib/hooks'
 import { uid } from '../lib/store'
 import { CATEGORIES, SECTIONS, COST, catOf } from '../lib/constants'
 
 // Full detail for one activity. Every change saves right away.
-export default function ActivitySheet({ activity: a, onClose, onOpen }) {
+export default function ActivitySheet({ activity: a, onClose, onOpen, templates = [] }) {
   const be = useBackend()
   const save = (patch) => be.update('activities', a.id, patch)
   const cat = catOf(a.category)
@@ -73,10 +75,13 @@ export default function ActivitySheet({ activity: a, onClose, onOpen }) {
             {a.date && <button type="button" className="link" onClick={() => save({ date: null, time: '' })}>Clear</button>}
           </div>
           {a.date && (
-            <button type="button" className="link make-maybe"
-              onClick={() => save({ date: null, time: '', options: [{ id: uid(), date: a.date, time: a.time || '' }, ...(a.options || [])] })}>
-              Not sure yet? Make it a maybe
-            </button>
+            <div className="date-links">
+              <button type="button" className="link make-maybe" onClick={() => openIcs(a)}>Add to phone calendar</button>
+              <button type="button" className="link make-maybe"
+                onClick={() => save({ date: null, time: '', options: [{ id: uid(), date: a.date, time: a.time || '' }, ...(a.options || [])] })}>
+                Not sure yet? Make it a maybe
+              </button>
+            </div>
           )}
         </div>
         <div className="field">
@@ -129,6 +134,7 @@ export default function ActivitySheet({ activity: a, onClose, onOpen }) {
         <Checklist
           key={section}
           section={SECTIONS.find((s) => s.id === section)}
+          templates={templates.filter((t) => t.section === section)}
           items={items}
           setItems={setItems}
         />
@@ -137,8 +143,11 @@ export default function ActivitySheet({ activity: a, onClose, onOpen }) {
   )
 }
 
-function Checklist({ section, items, setItems }) {
+function Checklist({ section, items, setItems, templates }) {
+  const be = useBackend()
   const [text, setText] = useState('')
+  const [mode, setMode] = useState(null) // 'use' | 'save'
+  const [name, setName] = useState('')
   const mine = items.filter((i) => i.section === section.id)
   const add = (e) => {
     e.preventDefault()
@@ -172,6 +181,33 @@ function Checklist({ section, items, setItems }) {
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder={section.placeholder} aria-label={section.placeholder} enterKeyHint="done" />
         <button className="btn small" disabled={!text.trim()}>Add</button>
       </form>
+      <div className="tpl-links">
+        {templates.length > 0 && <button type="button" className="link" aria-expanded={mode === 'use'} onClick={() => setMode(mode === 'use' ? null : 'use')}>Use a saved list</button>}
+        {mine.length > 0 && <button type="button" className="link" aria-expanded={mode === 'save'} onClick={() => { setMode(mode === 'save' ? null : 'save'); setName('') }}>Save this list</button>}
+      </div>
+      {mode === 'use' && (
+        <div className="chips">
+          {templates.map((t) => (
+            <button key={t.id} type="button" className="chip" onClick={() => {
+              const have = new Set(mine.map((i) => i.text.toLowerCase()))
+              const add = t.items.filter((x) => !have.has(x.toLowerCase()))
+                .map((x) => ({ id: uid(), section: section.id, text: x, detail: '', done: false }))
+              setItems([...items, ...add]); setMode(null)
+            }}>{t.name} <span className="muted">{t.items.length}</span></button>
+          ))}
+        </div>
+      )}
+      {mode === 'save' && (
+        <form className="row" onSubmit={async (e) => {
+          e.preventDefault()
+          if (!name.trim()) return
+          await be.add('templates', { name: name.trim(), section: section.id, items: mine.map((i) => i.text) })
+          setMode(null)
+        }}>
+          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Name it, like Weekend trip" aria-label="List name" />
+          <button className="btn small primary" disabled={!name.trim()}>Save list</button>
+        </form>
+      )}
     </div>
   )
 }
@@ -222,7 +258,7 @@ function MaybeDates({ a, save }) {
         <ul className="maybe-list">
           {options.map((o) => (
             <li key={o.id}>
-              <span className="maybe-when">{format(parseISO(o.date), 'EEE, MMM d')}</span>
+              <span className="maybe-when">{format(parseISO(o.date), 'EEE, MMM d')}<Votes activity={a} option={o} /></span>
               <div className="maybe-time">
                 <TimePicker label={`Time on ${format(parseISO(o.date), 'MMM d')}`} value={o.time || ''} emptyLabel="Any time"
                   onChange={(time) => save({ options: options.map((x) => (x.id === o.id ? { ...x, time } : x)) })} />

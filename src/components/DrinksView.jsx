@@ -5,7 +5,7 @@ import {
   avgScore, drinkTitle, fmtScore, kindOf, ratingList, scoreColor, scoreFace, scoreWord, KIND_EMOJI,
 } from '../lib/drinks'
 
-export default function DrinksView({ drinks, kinds, kind, setKind, onOpen }) {
+export default function DrinksView({ drinks, kinds, kind, setKind, onOpen, tryPlaces = [] }) {
   const be = useBackend()
   const [sort, setSort] = useState('best')
   const [q, setQ] = useState('')
@@ -34,6 +34,7 @@ export default function DrinksView({ drinks, kinds, kind, setKind, onOpen }) {
         <div className="seg small" role="radiogroup" aria-label="Sort">
           <button role="radio" aria-checked={sort === 'best'} onClick={() => setSort('best')}>Best first</button>
           <button role="radio" aria-checked={sort === 'new'} onClick={() => setSort('new')}>Newest</button>
+          <button role="radio" aria-checked={sort === 'places'} onClick={() => setSort('places')}>Places</button>
         </div>
       </header>
 
@@ -58,7 +59,9 @@ export default function DrinksView({ drinks, kinds, kind, setKind, onOpen }) {
         )}
       </div>
 
-      {list.length ? (
+      {sort === 'places' ? (
+        <Places list={list} kinds={kinds} tryPlaces={tryPlaces} onPick={(place) => { setQ(place); setSort('best') }} />
+      ) : list.length ? (
         <ol className="drink-list">
           {list.map(({ d, avg }, i) => (
             <DrinkRow key={d.id} drink={d} avg={avg} kind={kindOf(kinds, d.kind)}
@@ -139,5 +142,81 @@ function NewKind({ onDone }) {
         <button className="btn small primary" disabled={!label.trim()}>Add type</button>
       </div>
     </form>
+  )
+}
+
+// Drinks grouped by bar, best first, plus a shared "want to try" list.
+function Places({ list, kinds, tryPlaces, onPick }) {
+  const be = useBackend()
+  const [name, setName] = useState('')
+  const places = useMemo(() => {
+    const m = new Map()
+    list.forEach(({ d, avg }) => {
+      const label = (d.place || '').trim()
+      if (!label) return
+      const k = label.toLowerCase()
+      const p = m.get(k) || { label, rows: [] }
+      p.rows.push({ d, avg }); m.set(k, p)
+    })
+    return [...m.values()].map((p) => {
+      const rated = p.rows.filter((r) => r.avg != null)
+      const avg = rated.length ? rated.reduce((s, r) => s + r.avg, 0) / rated.length : null
+      const best = [...rated].sort((a, b) => b.avg - a.avg)[0]
+      return { ...p, avg, best }
+    }).sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0))
+  }, [list])
+  const visited = new Set(places.map((p) => p.label.toLowerCase()))
+
+  return (
+    <>
+      {places.length ? (
+        <ol className="drink-list">
+          {places.map((p) => (
+            <li key={p.label}>
+              <button className="drink-row" onClick={() => onPick(p.label)}>
+                <span className="score" style={{ '--score': p.avg != null ? scoreColor(p.avg) : 'var(--sunken)' }}>
+                  {p.avg != null
+                    ? <><span className="score-num">{fmtScore(Math.round(p.avg * 10) / 10)}</span><span className="score-word">{scoreWord(p.avg)}</span></>
+                    : <span className="score-word">Not rated</span>}
+                </span>
+                <span className="drink-body">
+                  <span className="drink-title">{p.label}</span>
+                  <span className="ticket-meta">
+                    <span>{p.rows.length} {p.rows.length === 1 ? 'drink' : 'drinks'}</span>
+                    {p.best && <span>Best: {drinkTitle(p.best.d, kindOf(kinds, p.best.d.kind))} ({fmtScore(p.best.avg)})</span>}
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <div className="empty"><p>Rate a drink with a bar name and it’ll show up here, ranked.</p></div>
+      )}
+
+      <section className="group try-places">
+        <h2>Want to try</h2>
+        <form className="row" onSubmit={async (e) => {
+          e.preventDefault()
+          if (!name.trim()) return
+          await be.add('tryPlaces', { name: name.trim() }); setName('')
+        }}>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="A bar or brewery you’ve heard about" aria-label="Place to try" enterKeyHint="done" />
+          <button className="btn small" disabled={!name.trim()}>Add</button>
+        </form>
+        {tryPlaces.length > 0 && (
+          <ul className="try-list">
+            {[...tryPlaces].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map((t) => (
+              <li key={t.id}>
+                <span>{t.name}{visited.has(t.name.trim().toLowerCase()) && <span className="tried"> rated ✓</span>}</span>
+                <button className="icon-btn" aria-label={`Remove ${t.name}`} onClick={() => be.remove('tryPlaces', t.id)}>
+                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </>
   )
 }

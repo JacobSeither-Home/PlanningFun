@@ -3,9 +3,10 @@ import { format, parseISO } from 'date-fns'
 import Sheet from './Sheet'
 import { useBackend } from '../lib/hooks'
 import { CATEGORIES } from '../lib/constants'
+import { autoMatch } from '../lib/tmdb'
 
 // Fast add: type, pick a category, Enter. Stays open so you can add several.
-export default function QuickAdd({ initial, onClose, onCreated }) {
+export default function QuickAdd({ initial, onClose, onCreated, tmdbKey }) {
   const be = useBackend()
   const [kind, setKind] = useState(initial.kind)
   const [title, setTitle] = useState('')
@@ -29,7 +30,8 @@ export default function QuickAdd({ initial, onClose, onCreated }) {
       // open the new activity so a time, or another possible date, can be added right away
       if (initial.date) onCreated(id, 'idea', true)
     } else {
-      await be.add('watch', { title: t, kind: watchKind, where: '', watched: false })
+      const id = await be.add('watch', { title: t, kind: watchKind, where: '', watched: false })
+      autoMatch(be, tmdbKey, id, t)
       setAdded((a) => [t, ...a].slice(0, 4))
     }
   }

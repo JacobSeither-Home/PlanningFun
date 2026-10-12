@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth,
   isToday, parseISO, startOfMonth, startOfWeek,
@@ -8,6 +8,7 @@ import {
   useDraggable, useDroppable, useSensor, useSensors,
 } from '@dnd-kit/core'
 import Ticket from './Ticket'
+import Votes, { agreed } from './Votes'
 import Sheet from './Sheet'
 import { useBackend } from '../lib/hooks'
 import { busySlice, catOf, personOf } from '../lib/constants'
@@ -17,9 +18,10 @@ const ymd = (d) => format(d, 'yyyy-MM-dd')
 // Drop on whatever is under the finger/pointer; fall back to overlap for keyboard drags.
 const collide = (args) => { const hit = pointerWithin(args); return hit.length ? hit : rectIntersection(args) }
 
-export default function CalendarView({ activities, busy = [], onOpen, onAdd, onBusy }) {
+export default function CalendarView({ activities, busy = [], onOpen, onAdd, onBusy, onMonthChange }) {
   const be = useBackend()
   const [month, setMonth] = useState(() => startOfMonth(new Date()))
+  useEffect(() => { onMonthChange?.(month.getMonth()) }, [month])
   const [selected, setSelected] = useState(() => ymd(new Date()))
   const [dragId, setDragId] = useState(null)
   const [picking, setPicking] = useState(false)
@@ -134,17 +136,22 @@ export default function CalendarView({ activities, busy = [], onOpen, onAdd, onB
               {(maybeByDay[selected] || []).length > 0 && (
                 <div className="maybe-day">
                   {maybeByDay[selected].map(({ a, o }) => (
-                    <div key={a.id + o.id} className="maybe-pick">
+                    <div key={a.id + o.id} className={`maybe-pick${agreed(o) ? ' agreed' : ''}`}>
                       <Ticket activity={a} onOpen={onOpen} />
+                      <div className="maybe-actions">
+                      <Votes activity={a} option={o} />
                       <button className="btn small" onClick={() => be.update('activities', a.id, { date: o.date, time: o.time || '', options: [] })}>
                         {o.time ? `Choose ${fmtTime(o.time)}` : 'Choose this day'}
                       </button>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
               {!dayItems.length && !(maybeByDay[selected] || []).length && (
-                <p className="muted">Nothing planned. Pick one of your ideas or add something new.</p>
+                <p className="muted">{(busyByDay[selected] || []).length
+                  ? 'Nothing planned together. Pick one of your ideas or add something new.'
+                  : 'You’re both free. Pick one of your ideas or add something new.'}</p>
               )}
             </section>
           </div>
@@ -213,16 +220,19 @@ function BusyRow({ b, day, onOpen }) {
 function Day({ date, items, busy, maybes = [], inMonth, selected, onSelect, onOpen, dragId }) {
   const id = ymd(date)
   const { setNodeRef, isOver } = useDroppable({ id: `day:${id}` })
+  const dow = date.getDay()
+  const free = inMonth && (dow === 0 || dow === 6) && id >= ymd(new Date())
+    && !items.length && !maybes.length && !busy.length
   return (
     <div
       ref={setNodeRef}
       role="gridcell"
       aria-selected={selected}
-      className={`cal-day${inMonth ? '' : ' out'}${isToday(date) ? ' today' : ''}${selected ? ' sel' : ''}${isOver ? ' over' : ''}`}
+      className={`cal-day${inMonth ? '' : ' out'}${isToday(date) ? ' today' : ''}${selected ? ' sel' : ''}${isOver ? ' over' : ''}${free ? ' free' : ''}`}
       onClick={() => onSelect(id)}
     >
       <button className="cal-num" onClick={(e) => { e.stopPropagation(); onSelect(id) }}
-        aria-label={`${format(date, 'EEEE, MMMM d')}${items.length ? `, ${items.length} planned` : ''}${maybes.length ? `, ${maybes.length} maybe` : ''}${busy.length ? `, ${[...new Set(busy.map((b) => personOf(b.person).name))].join(' and ')} busy` : ''}`}>
+        aria-label={`${format(date, 'EEEE, MMMM d')}${items.length ? `, ${items.length} planned` : ''}${maybes.length ? `, ${maybes.length} maybe` : ''}${free ? ', you’re both free' : ''}${busy.length ? `, ${[...new Set(busy.map((b) => personOf(b.person).name))].join(' and ')} busy` : ''}`}>
         {format(date, 'd')}
       </button>
       {busy.length > 0 && (
@@ -249,12 +259,12 @@ function Day({ date, items, busy, maybes = [], inMonth, selected, onSelect, onOp
         ))}
         {items.length > 3 && <span className="more">+{items.length - 3}</span>}
         {maybes.slice(0, Math.max(0, 3 - items.length)).map(({ a, o }) => (
-          <Ticket key={a.id + o.id} activity={{ ...a, title: `${o.time ? fmtTime(o.time) + ' ' : ''}${a.title}` }} onOpen={onOpen} compact ghost />
+          <Ticket key={a.id + o.id} activity={{ ...a, title: `${agreed(o) ? '♥ ' : ''}${o.time ? fmtTime(o.time) + ' ' : ''}${a.title}` }} onOpen={onOpen} compact ghost />
         ))}
       </div>
       <div className="cal-dots" aria-hidden="true">
         {items.slice(0, 4).map((a) => <i key={a.id} style={{ background: catOf(a.category).color }} />)}
-        {maybes.slice(0, Math.max(0, 4 - items.length)).map(({ a, o }) => <i key={a.id + o.id} className="ghost" style={{ '--c': catOf(a.category).color }} />)}
+        {maybes.slice(0, Math.max(0, 4 - items.length)).map(({ a, o }) => <i key={a.id + o.id} className={`ghost${agreed(o) ? ' agreed' : ''}`} style={{ '--c': catOf(a.category).color }} />)}
       </div>
     </div>
   )

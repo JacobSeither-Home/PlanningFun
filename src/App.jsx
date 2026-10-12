@@ -12,6 +12,8 @@ import DrinksView from './components/DrinksView'
 import DrinkSheet from './components/DrinkSheet'
 import BusySheet from './components/BusySheet'
 import { allKinds } from './lib/drinks'
+import SettingsSheet from './components/SettingsSheet'
+import { applyTheme, loadMonthColors, saveMonthColors, themeFor } from './lib/theme'
 
 const TABS = [
   { id: 'ideas', label: 'Ideas', icon: '💡' },
@@ -57,7 +59,19 @@ function Shell({ user }) {
   const kinds = useMemo(() => allKinds(customKinds), [customKinds])
   const [drinkSheet, setDrinkSheet] = useState(null) // { id } to edit, {} to add
   const [drinkKind, setDrinkKind] = useState(null) // Drinks tab filter; new ratings start with it
+  const { rows: templates } = useCollection('templates')
+  const { rows: settingsRows } = useCollection('settings')
+  const settings = settingsRows.find((r) => r.id === 'shared') || {}
+  const { rows: tryPlaces } = useCollection('tryPlaces')
+  const [showSettings, setShowSettings] = useState(false)
   const be = useBackend()
+
+  // Monthly colors: follow the month shown on the calendar, otherwise this month.
+  const [monthColors, setMonthColorsState] = useState(loadMonthColors)
+  const setMonthColors = (on) => { saveMonthColors(on); setMonthColorsState(on) }
+  const [calMonth, setCalMonth] = useState(() => new Date().getMonth())
+  const themeMonth = tab === 'calendar' ? calMonth : new Date().getMonth()
+  useEffect(() => { applyTheme(themeFor(themeMonth, monthColors)) }, [themeMonth, monthColors])
 
   useEffect(() => {
     const onHash = () => setTab(tabFromHash())
@@ -76,14 +90,14 @@ function Shell({ user }) {
   // Keyboard: "n" adds something new
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key !== 'n' || e.metaKey || e.ctrlKey || adding || openId || surprise || drinkSheet || busySheet) return
+      if (e.key !== 'n' || e.metaKey || e.ctrlKey || adding || openId || surprise || drinkSheet || busySheet || showSettings) return
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return
       e.preventDefault()
       addNew()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [tab, adding, openId, surprise, drinkSheet, busySheet])
+  }, [tab, adding, openId, surprise, drinkSheet, busySheet, showSettings])
 
   return (
     <div className="shell">
@@ -105,11 +119,14 @@ function Shell({ user }) {
         ))}
         <div className="nav-foot">
           <span className="who">{user.displayName || user.email}</span>
-          {be.mode === 'firebase' && <button className="link" onClick={() => be.signOut()}>Sign out</button>}
+          <button className="link" onClick={() => setShowSettings(true)}>Settings</button>
         </div>
       </nav>
 
       <main className="main">
+        <button className="settings-btn icon-btn" onClick={() => setShowSettings(true)} aria-label="Settings">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3.2" /><path d="M12 2.8v2.6M12 18.6v2.6M21.2 12h-2.6M5.4 12H2.8M18.5 5.5l-1.8 1.8M7.3 16.7l-1.8 1.8M18.5 18.5l-1.8-1.8M7.3 7.3 5.5 5.5" strokeLinecap="round" /></svg>
+        </button>
         {be.mode === 'demo' && (
           <p className="banner">Demo mode: everything is saved in this browser only, until Firebase is connected.</p>
         )}
@@ -129,13 +146,14 @@ function Shell({ user }) {
             onOpen={setOpenId}
             onAdd={(date) => setAdding({ kind: 'idea', date })}
             onBusy={setBusySheet}
+            onMonthChange={setCalMonth}
           />
         )}
         {tab === 'drinks' && (
-          <DrinksView drinks={drinks} kinds={kinds} kind={drinkKind} setKind={setDrinkKind} onOpen={(id) => setDrinkSheet({ id })} />
+          <DrinksView drinks={drinks} kinds={kinds} tryPlaces={tryPlaces} kind={drinkKind} setKind={setDrinkKind} onOpen={(id) => setDrinkSheet({ id })} />
         )}
         {tab === 'watch' && (
-          <WatchView items={watch} onSurprise={(items) => setSurprise({ kind: 'watch', items })} />
+          <WatchView items={watch} tmdbKey={settings.tmdbKey || ''} onSurprise={(items) => setSurprise({ kind: 'watch', items })} />
         )}
       </main>
 
@@ -150,6 +168,7 @@ function Shell({ user }) {
 
       {adding && (
         <QuickAdd
+          tmdbKey={settings.tmdbKey || ''}
           initial={adding}
           onClose={() => setAdding(null)}
           onCreated={(id, kind, open) => { setAdding(null); if (kind === 'idea' && id && open) setOpenId(id) }}
@@ -173,7 +192,11 @@ function Shell({ user }) {
           onClose={() => setDrinkSheet(null)}
         />
       )}
-      {open && <ActivitySheet activity={open} onClose={() => setOpenId(null)} onOpen={setOpenId} />}
+      {showSettings && (
+        <SettingsSheet user={user} monthColors={monthColors} setMonthColors={setMonthColors}
+          templates={templates} settings={settings} watch={watch} onClose={() => setShowSettings(false)} />
+      )}
+      {open && <ActivitySheet templates={templates} activity={open} onClose={() => setOpenId(null)} onOpen={setOpenId} />}
       {surprise && (
         <Surprise
           {...surprise}

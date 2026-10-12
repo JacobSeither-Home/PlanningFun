@@ -39,6 +39,12 @@ function demoBackend() {
       write(c, read(c).map((r) => (r.id === id ? applyPatch(r, { ...patch, updatedAt: Date.now() }) : r)))
     },
     async remove(c, id) { write(c, read(c).filter((r) => r.id !== id)) },
+    // create-or-merge a document with a fixed id (used for shared settings)
+    async set(c, id, data) {
+      const rows = read(c)
+      const i = rows.findIndex((r) => r.id === id)
+      write(c, i < 0 ? [...rows, { id, ...data }] : rows.map((r) => (r.id === id ? { ...r, ...data } : r)))
+    },
   }
 }
 
@@ -63,7 +69,7 @@ async function firebaseBackend() {
   } = await import('firebase/auth')
   const {
     initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-    collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc,
+    collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc,
   } = await import('firebase/firestore')
 
   const app = initializeApp(firebaseConfig)
@@ -100,6 +106,7 @@ async function firebaseBackend() {
     },
     update: (c, id, patch) => updateDoc(doc(col(c), id), { ...patch, updatedAt: Date.now() }),
     remove: (c, id) => deleteDoc(doc(col(c), id)),
+    set: (c, id, data) => setDoc(doc(col(c), id), { ...data, updatedAt: Date.now() }, { merge: true }),
   }
 }
 
