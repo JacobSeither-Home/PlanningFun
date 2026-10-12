@@ -41,7 +41,7 @@ export default function ActivitySheet({ activity: a, onClose, onOpen }) {
                   items: items.map((i) => ({ ...i, id: uid(), done: false })),
                 })
                 onOpen(id)
-              }}>Do it again</button>
+              }}>Duplicate</button>
               <button className={`btn ${a.done ? 'ghost' : 'primary'}`} onClick={() => save({ done: !a.done })}>
                 {a.done ? 'Mark not done' : 'Mark done'}
               </button>
@@ -201,18 +201,22 @@ const strip = ({ id, createdAt, updatedAt, createdBy, ...rest }) => rest
 // Possible dates for an activity we haven't committed to. Each shows faded on the calendar.
 function MaybeDates({ a, save }) {
   const options = [...(a.options || [])].sort((x, y) => (x.date + (x.time || '')).localeCompare(y.date + (y.time || '')))
+  // the next option starts on the most recent option's date, so a second time that day is one tap
+  const lastDate = options.length ? options[options.length - 1].date : ''
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
+  const [pickerKey, setPickerKey] = useState(0)
+  const newDate = date || lastDate
   const add = () => {
-    if (!date) return
-    save({ options: [...options, { id: uid(), date, time }] })
-    setDate(''); setTime('')
+    if (!newDate) return
+    save({ options: [...options, { id: uid(), date: newDate, time }] })
+    setTime(''); setPickerKey((k) => k + 1)
   }
   return (
     <section className="maybe-box" aria-label="Possible dates">
       <div className="maybe-head">
         <h3>Possible dates</h3>
-        <span className="muted small">Not booked yet. Each shows faded on the calendar.</span>
+        <span className="muted small">Not booked yet. Add each date or time you're choosing between; they show faded on the calendar until you choose one.</span>
       </div>
       {options.length > 0 && (
         <ul className="maybe-list">
@@ -234,9 +238,11 @@ function MaybeDates({ a, save }) {
         </ul>
       )}
       <div className="maybe-add">
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Possible date" />
-        <TimePicker label="Possible time" value={time} onChange={setTime} emptyLabel="Any time" />
-        <button type="button" className="btn small" disabled={!date} onClick={add}>Add option</button>
+        <input type="date" value={newDate} onChange={(e) => setDate(e.target.value)} aria-label="Possible date" />
+        <TimePicker key={pickerKey} label="Possible time" value={time} onChange={setTime} emptyLabel="Any time" />
+        <button type="button" className="btn small" disabled={!newDate} onClick={add}>
+          {options.length ? 'Add another option' : 'Add option'}
+        </button>
       </div>
       {options.length > 0 && (
         <button type="button" className="link" onClick={() => save({ options: [] })}>Not doing it, clear the dates</button>
