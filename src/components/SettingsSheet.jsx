@@ -5,7 +5,7 @@ import { MONTH_THEMES } from '../lib/theme'
 import { SECTIONS } from '../lib/constants'
 import { search, details } from '../lib/tmdb'
 
-export default function SettingsSheet({ user, monthColors, setMonthColors, templates, settings, watch, onClose }) {
+export default function SettingsSheet({ user, monthColors, setMonthColors, templates, settings, watch, drinks = [], onClose }) {
   const be = useBackend()
   const now = MONTH_THEMES[new Date().getMonth()]
   const savedKey = settings?.tmdbKey || ''
@@ -79,6 +79,20 @@ export default function SettingsSheet({ user, monthColors, setMonthColors, templ
         ) : (
           <p className="muted small">None yet. In any activity’s Packing, Reservations or Meals list, tap “Save this list” to reuse it later.</p>
         )}
+      </section>
+
+      <section className="set-sec">
+        <h3>Drink photos</h3>
+        {(() => {
+          const withPhotos = drinks.filter((d) => d.photoId)
+          const mb = withPhotos.reduce((n, d) => n + (d.photoBytes || 0), 0) / 1048576
+          return (
+            <p className="small">
+              {withPhotos.length} {withPhotos.length === 1 ? 'photo' : 'photos'}, about {mb < 0.1 && withPhotos.length ? '0.1' : mb.toFixed(1)} MB
+              {' '}of the 1 GB free database storage ({((mb / 1024) * 100).toFixed(mb > 10 ? 1 : 2)}% used).
+            </p>
+          )
+        })()}
       </section>
 
       <section className="set-sec">

@@ -112,6 +112,7 @@ function DrinkRow({ drink: d, avg, kind, crown, onOpen }) {
             </span>
           )}
         </span>
+        {d.thumb && <img className="drink-thumb" src={d.thumb} alt="" width="56" height="56" loading="lazy" />}
       </button>
     </li>
   )

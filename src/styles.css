@@ -650,6 +650,21 @@ button.vote { cursor: pointer; min-height: 30px; }
 .where { flex: 0 1 180px; min-height: 38px !important; padding: 6px 12px !important; font-size: 15px; background: var(--paper) !important; border-color: transparent !important; border-radius: 999px !important; }
 .where:focus { border-color: var(--focus) !important; }
 
+/* drink photos */
+.drink-photo { display: flex; flex-direction: column; gap: 8px; }
+.photo-add {
+  display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 64px; cursor: pointer;
+  border: 1.5px dashed var(--line); border-radius: var(--r-md); color: var(--ink-2); font-weight: 600;
+}
+.photo-add.busy { opacity: .6; pointer-events: none; }
+.photo-frame { padding: 0; border: 0; background: none; border-radius: var(--r-md); overflow: hidden; box-shadow: var(--frame); align-self: flex-start; }
+.photo-frame img { display: block; max-width: 100%; max-height: 260px; object-fit: cover; }
+.photo-actions { display: flex; gap: 16px; font-size: 14px; }
+.photo-actions .link { padding: 2px 0; cursor: pointer; }
+.drink-thumb { flex: none; width: 56px; height: 56px; border-radius: 10px; object-fit: cover; box-shadow: 0 0 0 1.5px var(--line); }
+.lightbox { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 16px; background: rgba(5, 20, 15, .88); cursor: zoom-out; animation: fade .15s; }
+.lightbox img { max-width: 100%; max-height: 100%; border-radius: 12px; box-shadow: 0 20px 50px -20px #000; }
+
 /* drinks: places */
 .try-places { margin-top: 28px; max-width: 760px; display: flex; flex-direction: column; gap: 10px; }
 .try-places h2 { margin: 0; }

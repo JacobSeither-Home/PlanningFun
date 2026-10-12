@@ -39,6 +39,7 @@ function demoBackend() {
       write(c, read(c).map((r) => (r.id === id ? applyPatch(r, { ...patch, updatedAt: Date.now() }) : r)))
     },
     async remove(c, id) { write(c, read(c).filter((r) => r.id !== id)) },
+    async get(c, id) { return read(c).find((r) => r.id === id) || null },
     // create-or-merge a document with a fixed id (used for shared settings)
     async set(c, id, data) {
       const rows = read(c)
@@ -69,7 +70,7 @@ async function firebaseBackend() {
   } = await import('firebase/auth')
   const {
     initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-    collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc,
+    collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDoc,
   } = await import('firebase/firestore')
 
   const app = initializeApp(firebaseConfig)
@@ -106,6 +107,7 @@ async function firebaseBackend() {
     },
     update: (c, id, patch) => updateDoc(doc(col(c), id), { ...patch, updatedAt: Date.now() }),
     remove: (c, id) => deleteDoc(doc(col(c), id)),
+    async get(c, id) { const d = await getDoc(doc(col(c), id)); return d.exists() ? { id: d.id, ...d.data() } : null },
     set: (c, id, data) => setDoc(doc(col(c), id), { ...data, updatedAt: Date.now() }, { merge: true }),
   }
 }

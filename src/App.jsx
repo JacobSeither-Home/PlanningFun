@@ -194,7 +194,7 @@ function Shell({ user }) {
       )}
       {showSettings && (
         <SettingsSheet user={user} monthColors={monthColors} setMonthColors={setMonthColors}
-          templates={templates} settings={settings} watch={watch} onClose={() => setShowSettings(false)} />
+          templates={templates} settings={settings} watch={watch} drinks={drinks} onClose={() => setShowSettings(false)} />
       )}
       {open && <ActivitySheet templates={templates} activity={open} onClose={() => setOpenId(null)} onOpen={setOpenId} />}
       {surprise && (

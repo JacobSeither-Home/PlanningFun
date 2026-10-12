@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import Sheet from './Sheet'
 import { useBackend } from '../lib/hooks'
 import { kindOf, ratingList, scoreColor, scoreFace, scoreWord } from '../lib/drinks'
+import { preparePhoto } from '../lib/photo'
+import { uid } from '../lib/store'
 
 // Add a new drink (drink = null) or edit one. You set your own rating;
 // the other person's rating shows alongside it.
@@ -20,6 +22,24 @@ export default function DrinkSheet({ drink, drinks, kinds, initialKind, onClose 
   }))
   const [score, setScore] = useState(drink?.ratings?.[me.uid]?.score || null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // photo: thumbnail lives on the drink; the full image is its own document, loaded on open
+  const [photo, setPhoto] = useState(() => (drink?.thumb ? { thumb: drink.thumb, full: null } : null))
+  const [photoChanged, setPhotoChanged] = useState(false)
+  const [photoErr, setPhotoErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [zoom, setZoom] = useState(false)
+  useEffect(() => {
+    if (!drink?.photoId) return
+    be.get('photos', drink.photoId).then((p) => { if (p?.data) setPhoto((x) => (x && !x.full ? { ...x, full: p.data } : x)) }).catch(() => {})
+  }, [drink?.photoId])
+  const pick = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setPhotoErr(''); setBusy(true)
+    try { setPhoto(await preparePhoto(file)); setPhotoChanged(true) } catch (ex) { setPhotoErr(ex.message) }
+    setBusy(false)
+  }
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
   const kind = kindOf(kinds, f.kind)
   const others = drink ? ratingList(drink).filter((r) => r.uid !== me.uid) : []
@@ -38,6 +58,16 @@ export default function DrinkSheet({ drink, drinks, kinds, initialKind, onClose 
       date: f.date || null, price: f.price === '' ? null : Number(f.price), notes: f.notes.trim(),
     }
     const mine = { name: me.name, score }
+    if (photoChanged) {
+      if (drink?.photoId) await be.remove('photos', drink.photoId).catch(() => {})
+      if (photo?.full) {
+        const pid = uid()
+        await be.set('photos', pid, { data: photo.full })
+        Object.assign(data, { thumb: photo.thumb, photoId: pid, photoBytes: photo.bytes })
+      } else {
+        Object.assign(data, { thumb: null, photoId: null, photoBytes: 0 })
+      }
+    }
     if (drink) await be.update('drinks', drink.id, { ...data, [`ratings.${me.uid}`]: mine })
     else await be.add('drinks', { ...data, ratings: { [me.uid]: mine } })
     onClose()
@@ -51,13 +81,17 @@ export default function DrinkSheet({ drink, drinks, kinds, initialKind, onClose 
         <>
           <span className="muted">Delete this rating for both of you?</span>
           <button className="btn ghost" onClick={() => setConfirmDelete(false)}>Keep it</button>
-          <button className="btn danger" onClick={async () => { onClose(); await be.remove('drinks', drink.id) }}>Delete</button>
+          <button className="btn danger" onClick={async () => {
+            onClose()
+            if (drink.photoId) await be.remove('photos', drink.photoId).catch(() => {})
+            await be.remove('drinks', drink.id)
+          }}>Delete</button>
         </>
       ) : (
         <>
           {drink && <button className="btn ghost" onClick={() => setConfirmDelete(true)}>Delete</button>}
           {!score && <span className="muted">Pick a score to save</span>}
-          <button className="btn primary" disabled={!score} onClick={save}>{drink ? 'Save changes' : 'Save rating'}</button>
+          <button className="btn primary" disabled={!score || busy} onClick={save}>{drink ? 'Save changes' : 'Save rating'}</button>
         </>
       )}
     >
@@ -70,6 +104,29 @@ export default function DrinkSheet({ drink, drinks, kinds, initialKind, onClose 
               <span aria-hidden="true">{k.emoji}</span> {k.label}
             </button>
           ))}
+        </div>
+
+        <div className="drink-photo">
+          {photo ? (
+            <>
+              <button type="button" className="photo-frame" onClick={() => setZoom(true)} aria-label="View photo full size">
+                <img src={photo.full || photo.thumb} alt="Drink photo" />
+              </button>
+              <div className="photo-actions">
+                <label className="link">
+                  Replace photo
+                  <input type="file" accept="image/*" onChange={pick} hidden />
+                </label>
+                <button type="button" className="link" onClick={() => { setPhoto(null); setPhotoChanged(true) }}>Remove</button>
+              </div>
+            </>
+          ) : (
+            <label className={`photo-add${busy ? ' busy' : ''}`}>
+              <span aria-hidden="true">📷</span> {busy ? 'Shrinking photo…' : 'Add a photo'}
+              <input type="file" accept="image/*" onChange={pick} hidden />
+            </label>
+          )}
+          {photoErr && <p className="error">{photoErr}</p>}
         </div>
 
         <div className="grid2">
@@ -130,6 +187,11 @@ export default function DrinkSheet({ drink, drinks, kinds, initialKind, onClose 
         <datalist id="drink-places">{places.map((p) => <option key={p} value={p} />)}</datalist>
         <datalist id="drink-types">{types.map((t) => <option key={t} value={t} />)}</datalist>
       </form>
+      {zoom && photo && (
+        <div className="lightbox" role="dialog" aria-label="Drink photo" onClick={() => setZoom(false)}>
+          <img src={photo.full || photo.thumb} alt="Drink photo, full size" />
+        </div>
+      )}
     </Sheet>
   )
 }
