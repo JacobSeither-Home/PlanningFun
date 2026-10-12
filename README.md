@@ -8,7 +8,8 @@ Jacob's and his girlfriend's shared planner: save activity ideas, put them on a 
 
 - **Ideas.** Saved activities shown as ticket stubs, colored by category. Search, filter, and "Surprise us" to pick a random idea.
 - **Calendar.** Month view. On a computer, drag ideas from the Someday tray onto a day, between days, or back to the tray. On a phone, tap a day, then "Pick an idea" or "New".
-- **Activity details.** Date, time, place, cost, link and notes, plus Packing, Reservations and Meals checklists. "Do it again" copies an activity with its checklists reset.
+- **Busy times.** On the calendar, "Mark busy" records when Jacob or Caroline is busy on their own, all day or for set hours, across one or several days. Shown as hatched J/C tags on phones and named tags on computers.
+- **Activity details.** Date, time (tap-only picker, no phone time wheel), place, cost, link and notes, plus Packing, Reservations and Meals checklists. "Do it again" copies an activity with its checklists reset.
 - **Drinks.** Rate drinks you order around town from 1 (gross) to 10 (awesome). Each of you rates separately and the list ranks by your average. Types start with Old Fashioned (with spirit) and Beer (with type), and you can add more, like Sazerac.
 - **Watch list.** Quick-add movies and shows, note where to watch them, check them off, and "Pick for tonight".
 - **Keyboard.** Press N anywhere to add something.
@@ -20,7 +21,7 @@ Jacob's and his girlfriend's shared planner: save activity ideas, put them on a 
 | App | React 18 + Vite, plain CSS |
 | Install | PWA via vite-plugin-pwa (Add to Home Screen on iPhone) |
 | Sign-in | Firebase Auth, email and password |
-| Data | Firestore, shared under `spaces/main/` (activities, watch, drinks, drinkKinds), cached offline on each device |
+| Data | Firestore, shared under `spaces/main/` (activities, watch, drinks, drinkKinds, busy), cached offline on each device |
 | Hosting | GitHub Pages, deployed by `.github/workflows/deploy.yml` on every push to `main` |
 
 Firebase project: `planningfun` (Spark/free plan). If `src/lib/firebaseConfig.js` is ever emptied, the app falls back to **demo mode** and saves to the current browser only.

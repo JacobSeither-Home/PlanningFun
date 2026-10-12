@@ -10,6 +10,7 @@ import ActivitySheet from './components/ActivitySheet'
 import Surprise from './components/Surprise'
 import DrinksView from './components/DrinksView'
 import DrinkSheet from './components/DrinkSheet'
+import BusySheet from './components/BusySheet'
 import { allKinds } from './lib/drinks'
 
 const TABS = [
@@ -50,6 +51,8 @@ function Shell({ user }) {
   const { rows: activities, error } = useCollection('activities')
   const { rows: watch } = useCollection('watch')
   const { rows: drinks } = useCollection('drinks')
+  const { rows: busy } = useCollection('busy')
+  const [busySheet, setBusySheet] = useState(null) // { id } to edit, { date } to add
   const { rows: customKinds } = useCollection('drinkKinds')
   const kinds = useMemo(() => allKinds(customKinds), [customKinds])
   const [drinkSheet, setDrinkSheet] = useState(null) // { id } to edit, {} to add
@@ -73,14 +76,14 @@ function Shell({ user }) {
   // Keyboard: "n" adds something new
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key !== 'n' || e.metaKey || e.ctrlKey || adding || openId || surprise || drinkSheet) return
+      if (e.key !== 'n' || e.metaKey || e.ctrlKey || adding || openId || surprise || drinkSheet || busySheet) return
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return
       e.preventDefault()
       addNew()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [tab, adding, openId, surprise, drinkSheet])
+  }, [tab, adding, openId, surprise, drinkSheet, busySheet])
 
   return (
     <div className="shell">
@@ -122,8 +125,10 @@ function Shell({ user }) {
         {tab === 'calendar' && (
           <CalendarView
             activities={activities}
+            busy={busy}
             onOpen={setOpenId}
             onAdd={(date) => setAdding({ kind: 'idea', date })}
+            onBusy={setBusySheet}
           />
         )}
         {tab === 'drinks' && (
@@ -148,6 +153,14 @@ function Shell({ user }) {
           initial={adding}
           onClose={() => setAdding(null)}
           onCreated={(id, kind) => { setAdding(null); if (kind === 'idea' && id && adding.openAfter) setOpenId(id) }}
+        />
+      )}
+      {busySheet && (busySheet.date || busy.some((b) => b.id === busySheet.id)) && (
+        <BusySheet
+          key={busySheet.id || busySheet.date}
+          busy={busySheet.id ? busy.find((b) => b.id === busySheet.id) : null}
+          date={busySheet.date}
+          onClose={() => setBusySheet(null)}
         />
       )}
       {drinkSheet && (

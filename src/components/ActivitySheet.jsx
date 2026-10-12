@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import Sheet from './Sheet'
+import TimePicker from './TimePicker'
 import { useBackend } from '../lib/hooks'
 import { uid } from '../lib/store'
 import { CATEGORIES, SECTIONS, COST, catOf } from '../lib/constants'
@@ -63,17 +64,18 @@ export default function ActivitySheet({ activity: a, onClose, onOpen }) {
       </div>
 
       <div className="grid2">
-        <label className="field">
-          <span>Date</span>
+        <div className="field">
+          <label htmlFor="activity-date">Date</label>
           <div className="row">
-            <input type="date" value={a.date || ''} onChange={(e) => save({ date: e.target.value || null })} />
-            {a.date && <button className="link" onClick={() => save({ date: null, time: '' })}>Clear</button>}
+            <input id="activity-date" type="date" value={a.date || ''} onChange={(e) => save({ date: e.target.value || null })} />
+            {a.date && <button type="button" className="link" onClick={() => save({ date: null, time: '' })}>Clear</button>}
           </div>
-        </label>
-        <label className="field">
+        </div>
+        <div className="field">
           <span>Time</span>
-          <input type="time" value={a.time || ''} disabled={!a.date} onChange={(e) => save({ time: e.target.value })} />
-        </label>
+          <TimePicker value={a.time || ''} disabled={!a.date} emptyLabel={a.date ? 'Add a time' : 'Pick a date first'}
+            onChange={(time) => save({ time })} />
+        </div>
         <label className="field">
           <span>Where</span>
           <TextField value={a.location || ''} onSave={(v) => save({ location: v.trim() })} placeholder="Place or address" />

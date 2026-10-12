@@ -15,3 +15,11 @@ export const SECTIONS = [
 ]
 
 export const COST = ['Free', '$', '$$', '$$$']
+
+// The two of us. Busy times are tagged with one of these ids.
+export const PEOPLE = [
+  { id: 'jacob', name: 'Jacob', email: 'jacobseither@gmail.com', color: 'var(--c-jade)' },
+  { id: 'caroline', name: 'Caroline', email: 'caroline.francescangeli@gmail.com', color: 'var(--c-flamingo)' },
+]
+export const personOf = (id) => PEOPLE.find((p) => p.id === id) || PEOPLE[0]
+export const personForEmail = (email) => PEOPLE.find((p) => p.email === (email || '').toLowerCase()) || PEOPLE[0]

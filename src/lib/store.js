@@ -23,7 +23,7 @@ function demoBackend() {
   return {
     mode: 'demo',
     onUser(cb) { cb(user); return () => {} },
-    me: () => ({ uid: user.uid, name: user.displayName }),
+    me: () => ({ uid: user.uid, name: user.displayName, email: user.email }),
     async signIn() {}, async signUp() {}, async signOut() {},
     subscribe(c, cb) {
       ;(listeners[c] ||= []).push(cb)
@@ -79,7 +79,7 @@ async function firebaseBackend() {
     onUser: (cb) => onAuthStateChanged(auth, cb),
     me: () => {
       const u = auth.currentUser
-      return u ? { uid: u.uid, name: u.displayName || (u.email || '').split('@')[0] } : null
+      return u ? { uid: u.uid, name: u.displayName || (u.email || '').split('@')[0], email: (u.email || '').toLowerCase() } : null
     },
     signIn: (email, pw) => signInWithEmailAndPassword(auth, email, pw),
     async signUp(email, pw, name) {

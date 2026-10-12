@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
-  addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth,
+  addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth,
   isToday, parseISO, startOfMonth, startOfWeek,
 } from 'date-fns'
 import {
@@ -10,13 +10,14 @@ import {
 import Ticket from './Ticket'
 import Sheet from './Sheet'
 import { useBackend } from '../lib/hooks'
-import { catOf } from '../lib/constants'
+import { catOf, personOf } from '../lib/constants'
+import { fmtTime } from './Ticket'
 
 const ymd = (d) => format(d, 'yyyy-MM-dd')
 // Drop on whatever is under the finger/pointer; fall back to overlap for keyboard drags.
 const collide = (args) => { const hit = pointerWithin(args); return hit.length ? hit : rectIntersection(args) }
 
-export default function CalendarView({ activities, onOpen, onAdd }) {
+export default function CalendarView({ activities, busy = [], onOpen, onAdd, onBusy }) {
   const be = useBackend()
   const [month, setMonth] = useState(() => startOfMonth(new Date()))
   const [selected, setSelected] = useState(() => ymd(new Date()))
@@ -40,6 +41,19 @@ export default function CalendarView({ activities, onOpen, onAdd }) {
     Object.values(m).forEach((l) => l.sort((x, y) => (x.time || '99').localeCompare(y.time || '99')))
     return m
   }, [activities])
+
+  // Busy entries can span several days; index them under every day they cover.
+  const busyByDay = useMemo(() => {
+    const m = {}
+    busy.forEach((b) => {
+      if (!b.start) return
+      let d = parseISO(b.start)
+      const end = parseISO(b.end && b.end >= b.start ? b.end : b.start)
+      for (let i = 0; d <= end && i < 120; i++, d = addDays(d, 1)) (m[ymd(d)] ||= []).push(b)
+    })
+    Object.values(m).forEach((l) => l.sort((x, y) => (x.from || '').localeCompare(y.from || '') || x.person.localeCompare(y.person)))
+    return m
+  }, [busy])
 
   const ideas = activities.filter((a) => !a.date && !a.done)
     .sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0))
@@ -83,7 +97,7 @@ export default function CalendarView({ activities, onOpen, onAdd }) {
                 <div key={d} className="cal-dow" role="columnheader">{d}</div>
               ))}
               {days.map((d) => (
-                <Day key={ymd(d)} date={d} items={byDay[ymd(d)] || []} inMonth={isSameMonth(d, month)}
+                <Day key={ymd(d)} date={d} items={byDay[ymd(d)] || []} busy={busyByDay[ymd(d)] || []} inMonth={isSameMonth(d, month)}
                   selected={selected === ymd(d)} onSelect={setSelected} onOpen={onOpen} dragId={dragId} />
               ))}
             </div>
@@ -93,9 +107,15 @@ export default function CalendarView({ activities, onOpen, onAdd }) {
                 <h2>{format(parseISO(selected), 'EEEE, MMMM d')}</h2>
                 <div className="row">
                   {ideas.length > 0 && <button className="btn small" onClick={() => setPicking(true)}>Pick an idea</button>}
+                  <button className="btn small" onClick={() => onBusy({ date: selected })}>Mark busy</button>
                   <button className="btn small primary" onClick={() => onAdd(selected)}>New</button>
                 </div>
               </div>
+              {(busyByDay[selected] || []).length > 0 && (
+                <ul className="busy-list" aria-label="Busy">
+                  {busyByDay[selected].map((b) => <BusyRow key={b.id} b={b} onOpen={() => onBusy({ id: b.id })} />)}
+                </ul>
+              )}
               {dayItems.length ? (
                 <div className="tickets">
                   {dayItems.map((a) => <Ticket key={a.id} activity={a} onOpen={onOpen} />)}
@@ -149,7 +169,24 @@ function DraggableTicket({ activity, onOpen, compact, hidden }) {
   )
 }
 
-function Day({ date, items, inMonth, selected, onSelect, onOpen, dragId }) {
+function BusyRow({ b, onOpen }) {
+  const p = personOf(b.person)
+  const multi = b.end && b.end !== b.start
+  return (
+    <li>
+      <button className="busy-row" style={{ '--who': p.color }} onClick={onOpen}>
+        <span className="busy-who">{p.name} busy</span>
+        <span className="busy-what">{b.note || 'Busy'}</span>
+        <span className="busy-when">
+          {b.from ? `${fmtTime(b.from)}${b.to ? `–${fmtTime(b.to)}` : ''}` : 'All day'}
+          {multi && `, ${format(parseISO(b.start), 'MMM d')}–${format(parseISO(b.end), 'MMM d')}`}
+        </span>
+      </button>
+    </li>
+  )
+}
+
+function Day({ date, items, busy, inMonth, selected, onSelect, onOpen, dragId }) {
   const id = ymd(date)
   const { setNodeRef, isOver } = useDroppable({ id: `day:${id}` })
   return (
@@ -161,9 +198,18 @@ function Day({ date, items, inMonth, selected, onSelect, onOpen, dragId }) {
       onClick={() => onSelect(id)}
     >
       <button className="cal-num" onClick={(e) => { e.stopPropagation(); onSelect(id) }}
-        aria-label={`${format(date, 'EEEE, MMMM d')}${items.length ? `, ${items.length} planned` : ''}`}>
+        aria-label={`${format(date, 'EEEE, MMMM d')}${items.length ? `, ${items.length} planned` : ''}${busy.length ? `, ${[...new Set(busy.map((b) => personOf(b.person).name))].join(' and ')} busy` : ''}`}>
         {format(date, 'd')}
       </button>
+      {busy.length > 0 && (
+        <div className="cal-busy" aria-hidden="true">
+          {[...new Set(busy.map((b) => b.person))].map((id) => (
+            <span key={id} style={{ '--who': personOf(id).color }}>
+              <b className="b-initial">{personOf(id).name[0]}</b><b className="b-name">{personOf(id).name} busy</b>
+            </span>
+          ))}
+        </div>
+      )}
       <div className="cal-items">
         {items.slice(0, 3).map((a) => (
           <DraggableTicket key={a.id} activity={a} onOpen={onOpen} compact hidden={dragId === a.id} />
