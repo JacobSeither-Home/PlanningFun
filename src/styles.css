@@ -350,22 +350,21 @@ textarea { resize: vertical; line-height: 1.45; }
 .maybe-head h3 { margin: 0; font: 400 19px var(--display); color: var(--emerald); }
 @media (prefers-color-scheme: dark) { .maybe-head h3 { color: var(--blush); } }
 .maybe-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.maybe-list li { display: grid; grid-template-columns: auto minmax(84px, 1fr) auto auto; gap: 6px; align-items: start; }
-.maybe-when { padding-top: 12px; font-weight: 600; white-space: nowrap; }
+.maybe-list li { display: grid; grid-template-columns: minmax(96px, 1fr) auto auto auto; gap: 6px 8px; align-items: center; }
+.maybe-list .maybe-when { grid-column: 1 / -1; font-weight: 600; }
 .maybe-time { min-width: 0; }
-.maybe-list li > .btn { margin-top: 4px; }
-.maybe-list li > .icon-btn { margin-top: 2px; }
-.maybe-list li:has(.tp-panel) .maybe-time { grid-column: 1 / -1; grid-row: 2; }
-.maybe-add { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; }
+.maybe-list .tp-value { min-height: 40px; }
+.maybe-list li:has(.tp-panel) .maybe-time { grid-column: 1 / -1; }
+.maybe-add { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; padding-top: 4px; }
 .maybe-add .btn { grid-column: 1 / -1; justify-self: start; }
+.maybe-thru { font-weight: 600; }
 .maybe-box .link { align-self: flex-start; }
 
 /* votes on maybe options */
 .votes { display: inline-flex; gap: 4px; margin-left: 0; }
-.maybe-when .votes { display: flex; margin-top: 4px; }
 .vote {
   display: inline-flex; align-items: center; gap: 2px; min-height: 26px; padding: 0 7px;
-  border: 1.5px solid color-mix(in srgb, var(--who) 55%, transparent); border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--who) 55%, transparent); border-radius: 999px; white-space: nowrap;
   background: transparent; color: var(--ink-2); font-size: 12px; font-weight: 700; line-height: 1;
 }
 button.vote { cursor: pointer; min-height: 30px; }
@@ -546,6 +545,16 @@ button.vote { cursor: pointer; min-height: 30px; }
 .swatches i { width: 16px; height: 22px; border-radius: 8px 8px 3px 3px; }
 .tpl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .tpl-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+/* when: booked or maybe, at the top of an activity */
+.when { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; background: var(--surface); border-radius: var(--r-md); box-shadow: var(--frame); }
+.when-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.when-head h3 { margin: 0; font: 400 19px var(--display); color: var(--emerald); }
+@media (prefers-color-scheme: dark) { .when-head h3 { color: var(--blush); } }
+.when-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.when-hint { margin: 0; color: var(--m-a); font-weight: 600; }
+.when > p { margin: 0; }
+.when .maybe-list li { padding-bottom: 6px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
 
 /* time picker */
 .tp { display: flex; flex-direction: column; gap: 8px; }

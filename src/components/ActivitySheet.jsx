@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react'
-import { format, parseISO } from 'date-fns'
 import Sheet from './Sheet'
-import TimePicker from './TimePicker'
-import { optionText } from './Ticket'
-import Votes from './Votes'
-import { openIcs } from '../lib/ics'
+import WhenBox from './WhenBox'
 import { useBackend } from '../lib/hooks'
 import { uid } from '../lib/store'
 import { CATEGORIES, SECTIONS, COST, catOf } from '../lib/constants'
@@ -39,7 +35,7 @@ export default function ActivitySheet({ activity: a, onClose, onOpen, templates 
               <button className="btn ghost" onClick={() => setConfirmDelete(true)}>Delete</button>
               <button className="btn ghost" onClick={async () => {
                 const id = await be.add('activities', {
-                  ...strip(a), date: null, time: '', done: false,
+                  ...strip(a), date: null, time: '', endDate: null, endTime: '', options: [], done: false,
                   items: items.map((i) => ({ ...i, id: uid(), done: false })),
                 })
                 onOpen(id)
@@ -58,6 +54,8 @@ export default function ActivitySheet({ activity: a, onClose, onOpen, templates 
           onSave={(v) => v.trim() && save({ title: v.trim().replace(/\s*\n\s*/g, ' ') })} aria-label="Title" />
       </div>
 
+      <WhenBox a={a} />
+
       <div className="chips scroll" role="radiogroup" aria-label="Category">
         {CATEGORIES.map((c) => (
           <button key={c.id} type="button" role="radio" aria-checked={a.category === c.id}
@@ -68,27 +66,6 @@ export default function ActivitySheet({ activity: a, onClose, onOpen, templates 
       </div>
 
       <div className="grid2">
-        <div className="field">
-          <label htmlFor="activity-date">Date</label>
-          <div className="row">
-            <input id="activity-date" type="date" value={a.date || ''} onChange={(e) => save({ date: e.target.value || null })} />
-            {a.date && <button type="button" className="link" onClick={() => save({ date: null, time: '' })}>Clear</button>}
-          </div>
-          {a.date && (
-            <div className="date-links">
-              <button type="button" className="link make-maybe" onClick={() => openIcs(a)}>Add to phone calendar</button>
-              <button type="button" className="link make-maybe"
-                onClick={() => save({ date: null, time: '', options: [{ id: uid(), date: a.date, time: a.time || '' }, ...(a.options || [])] })}>
-                Not sure yet? Make it a maybe
-              </button>
-            </div>
-          )}
-        </div>
-        <div className="field">
-          <span>Time</span>
-          <TimePicker value={a.time || ''} disabled={!a.date} emptyLabel={a.date ? 'Add a time' : 'Pick a date first'}
-            onChange={(time) => save({ time })} />
-        </div>
         <label className="field">
           <span>Where</span>
           <TextField value={a.location || ''} onSave={(v) => save({ location: v.trim() })} placeholder="Place or address" />
@@ -103,8 +80,6 @@ export default function ActivitySheet({ activity: a, onClose, onOpen, templates 
           </div>
         </div>
       </div>
-
-      {!a.date && <MaybeDates a={a} save={save} />}
 
       <label className="field">
         <span>Link</span>
@@ -233,56 +208,3 @@ function TextField({ value, onSave, multiline, rows = 3, enterSaves, className =
 
 const withProto = (u) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
 const strip = ({ id, createdAt, updatedAt, createdBy, ...rest }) => rest
-
-// Possible dates for an activity we haven't committed to. Each shows faded on the calendar.
-function MaybeDates({ a, save }) {
-  const options = [...(a.options || [])].sort((x, y) => (x.date + (x.time || '')).localeCompare(y.date + (y.time || '')))
-  // the next option starts on the most recent option's date, so a second time that day is one tap
-  const lastDate = options.length ? options[options.length - 1].date : ''
-  const [date, setDate] = useState('')
-  const [time, setTime] = useState('')
-  const [pickerKey, setPickerKey] = useState(0)
-  const newDate = date || lastDate
-  const add = () => {
-    if (!newDate) return
-    save({ options: [...options, { id: uid(), date: newDate, time }] })
-    setTime(''); setPickerKey((k) => k + 1)
-  }
-  return (
-    <section className="maybe-box" aria-label="Possible dates">
-      <div className="maybe-head">
-        <h3>Possible dates</h3>
-        <span className="muted small">Not booked yet. Add each date or time you're choosing between; they show faded on the calendar until you choose one.</span>
-      </div>
-      {options.length > 0 && (
-        <ul className="maybe-list">
-          {options.map((o) => (
-            <li key={o.id}>
-              <span className="maybe-when">{format(parseISO(o.date), 'EEE, MMM d')}<Votes activity={a} option={o} /></span>
-              <div className="maybe-time">
-                <TimePicker label={`Time on ${format(parseISO(o.date), 'MMM d')}`} value={o.time || ''} emptyLabel="Any time"
-                  onChange={(time) => save({ options: options.map((x) => (x.id === o.id ? { ...x, time } : x)) })} />
-              </div>
-              <button type="button" className="btn small primary"
-                onClick={() => save({ date: o.date, time: o.time || '', options: [] })}>Choose</button>
-              <button type="button" className="icon-btn" aria-label={`Remove ${optionText(o)}`}
-                onClick={() => save({ options: options.filter((x) => x.id !== o.id) })}>
-                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="maybe-add">
-        <input type="date" value={newDate} onChange={(e) => setDate(e.target.value)} aria-label="Possible date" />
-        <TimePicker key={pickerKey} label="Possible time" value={time} onChange={setTime} emptyLabel="Any time" />
-        <button type="button" className="btn small" disabled={!newDate} onClick={add}>
-          {options.length ? 'Add another option' : 'Add option'}
-        </button>
-      </div>
-      {options.length > 0 && (
-        <button type="button" className="link" onClick={() => save({ options: [] })}>Not doing it, clear the dates</button>
-      )}
-    </section>
-  )
-}

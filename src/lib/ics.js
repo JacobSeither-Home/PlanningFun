@@ -8,16 +8,18 @@ const stamp = (dt) => `${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(d
 export function activityIcs(a) {
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//PlanningFun//EN', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT',
     `UID:${a.id}@planningfun`, `DTSTAMP:${stamp(new Date())}`]
+  const last = a.endDate && a.endDate > a.date ? a.endDate : a.date
+  const at = (ds, ts) => { const [y, mo, d] = ds.split('-').map(Number); const [h, mi] = ts.split(':').map(Number); return new Date(y, mo - 1, d, h, mi) }
+  const loc = (t) => `${t.getFullYear()}${pad(t.getMonth() + 1)}${pad(t.getDate())}T${pad(t.getHours())}${pad(t.getMinutes())}00`
   if (a.time) {
-    // floating local time, 2 hours long by default
-    const [y, mo, d] = a.date.split('-').map(Number)
-    const [h, mi] = a.time.split(':').map(Number)
-    const start = new Date(y, mo - 1, d, h, mi)
-    const end = new Date(start.getTime() + 2 * 3600e3)
-    const loc = (t) => `${t.getFullYear()}${pad(t.getMonth() + 1)}${pad(t.getDate())}T${pad(t.getHours())}${pad(t.getMinutes())}00`
+    // floating local time; end at the end time if set, otherwise 2 hours later (or end of the last day)
+    const start = at(a.date, a.time)
+    let end = a.endTime ? at(last, a.endTime) : last !== a.date ? at(last, '23:59') : new Date(start.getTime() + 2 * 3600e3)
+    if (end <= start) end = new Date(start.getTime() + 2 * 3600e3)
     lines.push(`DTSTART:${loc(start)}`, `DTEND:${loc(end)}`)
   } else {
-    const [y, mo, d] = a.date.split('-').map(Number)
+    // all-day across every day of the span (DTEND is the day after the last day)
+    const [y, mo, d] = last.split('-').map(Number)
     const next = new Date(y, mo - 1, d + 1)
     lines.push(`DTSTART;VALUE=DATE:${dateOnly(a.date)}`, `DTEND;VALUE=DATE:${next.getFullYear()}${pad(next.getMonth() + 1)}${pad(next.getDate())}`)
   }

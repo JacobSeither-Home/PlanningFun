@@ -1,5 +1,6 @@
 import { format, parseISO } from 'date-fns'
 import { catOf, COST } from '../lib/constants'
+import { spanText } from '../lib/when'
 
 // An activity drawn as a ticket stub. The stub color is the category.
 export default function Ticket({ activity: a, onOpen, compact, dragProps, dragging, ghost }) {
@@ -21,7 +22,7 @@ export default function Ticket({ activity: a, onOpen, compact, dragProps, draggi
         <span className="ticket-title">{maybe && !compact && <span className="maybe-tag">Maybe</span>}{a.title}</span>
         {!compact && (
           <span className="ticket-meta">
-            {a.date && <span>{format(parseISO(a.date), 'EEE MMM d')}{a.time ? `, ${fmtTime(a.time)}` : ''}</span>}
+            {a.date && <span>{spanText(a)}</span>}
             {!a.date && !options.length && <span>{cat.label}</span>}
             {options.length > 0 && <span>{optionsText(options)}</span>}
             {a.location && <span>{a.location}</span>}
@@ -42,7 +43,7 @@ export function fmtTime(t) {
 }
 
 // "Sat Oct 17, 2pm or Sun Oct 18, 7:30pm"
-export const optionText = (o) => `${format(parseISO(o.date), 'EEE MMM d')}${o.time ? `, ${fmtTime(o.time)}` : ''}`
+export const optionText = (o) => spanText(o)
 export function optionsText(options) {
   const sorted = [...options].sort((x, y) => (x.date + (x.time || '')).localeCompare(y.date + (y.time || '')))
   return sorted.map(optionText).join(' or ')

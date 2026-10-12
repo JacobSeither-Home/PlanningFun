@@ -1,3 +1,4 @@
+import { lastDay } from '../lib/when'
 import { useMemo, useState } from 'react'
 import { format, parseISO, isBefore, startOfToday } from 'date-fns'
 import Ticket from './Ticket'
@@ -16,12 +17,12 @@ export default function IdeasView({ activities, onOpen, onSurprise }) {
   const { upcoming, maybes, ideas, done } = useMemo(() => {
     const m = activities.filter(match)
     return {
-      upcoming: m.filter((a) => a.date && !a.done && !isBefore(parseISO(a.date), today))
+      upcoming: m.filter((a) => a.date && !a.done && !isBefore(parseISO(lastDay(a)), today))
         .sort((x, y) => (x.date + (x.time || '')).localeCompare(y.date + (y.time || ''))),
       maybes: m.filter((a) => !a.date && !a.done && a.options?.length)
         .sort((x, y) => firstOpt(x).localeCompare(firstOpt(y))),
       ideas: m.filter((a) => !a.date && !a.done && !a.options?.length).sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0)),
-      done: m.filter((a) => a.done || (a.date && isBefore(parseISO(a.date), today)))
+      done: m.filter((a) => a.done || (a.date && isBefore(parseISO(lastDay(a)), today)))
         .sort((x, y) => (y.date || '').localeCompare(x.date || '')),
     }
   }, [activities, q, cat])

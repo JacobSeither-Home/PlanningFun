@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth,
+  addDays, addMonths, differenceInCalendarDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth,
   isToday, parseISO, startOfMonth, startOfWeek,
 } from 'date-fns'
 import {
@@ -9,6 +9,7 @@ import {
 } from '@dnd-kit/core'
 import Ticket from './Ticket'
 import Votes, { agreed } from './Votes'
+import { dayPart, spanDays } from '../lib/when'
 import Sheet from './Sheet'
 import { useBackend } from '../lib/hooks'
 import { busySlice, catOf, personOf } from '../lib/constants'
@@ -39,8 +40,10 @@ export default function CalendarView({ activities, busy = [], onOpen, onAdd, onB
 
   const byDay = useMemo(() => {
     const m = {}
-    activities.filter((a) => a.date).forEach((a) => { (m[a.date] ||= []).push(a) })
-    Object.values(m).forEach((l) => l.sort((x, y) => (x.time || '99').localeCompare(y.time || '99')))
+    // multi-day plans appear on every day they cover
+    activities.filter((a) => a.date).forEach((a) => spanDays(a).forEach((d) => { (m[d] ||= []).push(a) }))
+    Object.entries(m).forEach(([d, l]) => l.sort((x, y) =>
+      (x.date < d) - (y.date < d) || (x.time || '99').localeCompare(y.time || '99')))
     return m
   }, [activities])
 
@@ -48,7 +51,7 @@ export default function CalendarView({ activities, busy = [], onOpen, onAdd, onB
   const maybeByDay = useMemo(() => {
     const m = {}
     activities.filter((a) => !a.date && !a.done && a.options?.length).forEach((a) =>
-      a.options.forEach((o) => { if (o.date) (m[o.date] ||= []).push({ a, o }) }))
+      a.options.forEach((o) => spanDays(o).forEach((d) => { (m[d] ||= []).push({ a, o }) })))
     Object.values(m).forEach((l) => l.sort((x, y) => (x.o.time || '99').localeCompare(y.o.time || '99')))
     return m
   }, [activities])
@@ -69,16 +72,29 @@ export default function CalendarView({ activities, busy = [], onOpen, onAdd, onB
 
   const ideas = activities.filter((a) => !a.date && !a.done)
     .sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0))
-  const dragging = activities.find((a) => a.id === dragId)
+  // drag ids are "<activity id>@<day it was picked up from>" so a multi-day plan can be grabbed on any day
+  const dragAct = dragId ? activities.find((a) => a.id === String(dragId).split('@')[0]) : null
+  const dragging = dragAct
 
   const onDragEnd = ({ active, over }) => {
     setDragId(null)
     if (!over) return
-    const a = activities.find((x) => x.id === active.id)
+    const [aid, from] = String(active.id).split('@')
+    const a = activities.find((x) => x.id === aid)
     if (!a) return
-    if (over.id === 'tray') { if (a.date) be.update('activities', a.id, { date: null, time: '' }); return }
+    if (over.id === 'tray') {
+      if (a.date) be.update('activities', a.id, { date: null, time: '', endDate: null, endTime: '' })
+      return
+    }
     const date = String(over.id).replace('day:', '')
-    if (a.date !== date) be.update('activities', a.id, { date })
+    if (!a.date || from === 'tray') {
+      be.update('activities', a.id, { date, endDate: null })
+    } else if (from !== date) {
+      // move the whole span by the same number of days
+      const shift = differenceInCalendarDays(parseISO(date), parseISO(from))
+      const move = (d) => ymd(addDays(parseISO(d), shift))
+      be.update('activities', a.id, { date: move(a.date), ...(a.endDate ? { endDate: move(a.endDate) } : {}) })
+    }
     setSelected(date)
   }
 
@@ -140,7 +156,7 @@ export default function CalendarView({ activities, busy = [], onOpen, onAdd, onB
                       <Ticket activity={a} onOpen={onOpen} />
                       <div className="maybe-actions">
                       <Votes activity={a} option={o} />
-                      <button className="btn small" onClick={() => be.update('activities', a.id, { date: o.date, time: o.time || '', options: [] })}>
+                      <button className="btn small" onClick={() => be.update('activities', a.id, { date: o.date, time: o.time || '', endDate: o.endDate || null, endTime: o.endTime || '', options: [] })}>
                         {o.time ? `Choose ${fmtTime(o.time)}` : 'Choose this day'}
                       </button>
                       </div>
@@ -183,15 +199,15 @@ function Tray({ ideas, onOpen, dragId }) {
       <h2>Someday</h2>
       <p className="muted small">Drag onto a day. Drag back here to unschedule.</p>
       <div className="tickets">
-        {ideas.map((a) => <DraggableTicket key={a.id} activity={a} onOpen={onOpen} hidden={dragId === a.id} />)}
+        {ideas.map((a) => <DraggableTicket key={a.id} dragKey={`${a.id}@tray`} activity={a} onOpen={onOpen} hidden={dragId === `${a.id}@tray`} />)}
         {!ideas.length && <p className="muted small">No unscheduled ideas.</p>}
       </div>
     </aside>
   )
 }
 
-function DraggableTicket({ activity, onOpen, compact, hidden }) {
-  const { attributes, listeners, setNodeRef } = useDraggable({ id: activity.id })
+function DraggableTicket({ activity, dragKey, onOpen, compact, hidden }) {
+  const { attributes, listeners, setNodeRef } = useDraggable({ id: dragKey || activity.id })
   return (
     <div ref={setNodeRef} style={{ opacity: hidden ? 0.3 : 1 }}>
       <Ticket activity={activity} onOpen={onOpen} compact={compact} dragProps={{ ...attributes, ...listeners }} />
@@ -255,11 +271,13 @@ function Day({ date, items, busy, maybes = [], inMonth, selected, onSelect, onOp
       )}
       <div className="cal-items">
         {items.slice(0, 3).map((a) => (
-          <DraggableTicket key={a.id} activity={a} onOpen={onOpen} compact hidden={dragId === a.id} />
+          <DraggableTicket key={a.id} dragKey={`${a.id}@${id}`} onOpen={onOpen} compact
+            activity={{ ...a, title: [dayPart(a, id), a.title].filter(Boolean).join(' ') }}
+            hidden={String(dragId || '').split('@')[0] === a.id} />
         ))}
         {items.length > 3 && <span className="more">+{items.length - 3}</span>}
         {maybes.slice(0, Math.max(0, 3 - items.length)).map(({ a, o }) => (
-          <Ticket key={a.id + o.id} activity={{ ...a, title: `${agreed(o) ? '♥ ' : ''}${o.time ? fmtTime(o.time) + ' ' : ''}${a.title}` }} onOpen={onOpen} compact ghost />
+          <Ticket key={a.id + o.id} activity={{ ...a, title: [agreed(o) ? '♥' : '', dayPart(o, id), a.title].filter(Boolean).join(' ') }} onOpen={onOpen} compact ghost />
         ))}
       </div>
       <div className="cal-dots" aria-hidden="true">
