@@ -42,6 +42,15 @@ export default function CalendarView({ activities, busy = [], onOpen, onAdd, onB
     return m
   }, [activities])
 
+  // Maybe activities: one faded entry on each possible date
+  const maybeByDay = useMemo(() => {
+    const m = {}
+    activities.filter((a) => !a.date && !a.done && a.options?.length).forEach((a) =>
+      a.options.forEach((o) => { if (o.date) (m[o.date] ||= []).push({ a, o }) }))
+    Object.values(m).forEach((l) => l.sort((x, y) => (x.o.time || '99').localeCompare(y.o.time || '99')))
+    return m
+  }, [activities])
+
   // Busy entries can span several days; index them under every day they cover.
   const busyByDay = useMemo(() => {
     const m = {}
@@ -98,7 +107,7 @@ export default function CalendarView({ activities, busy = [], onOpen, onAdd, onB
                 <div key={d} className="cal-dow" role="columnheader">{d}</div>
               ))}
               {days.map((d) => (
-                <Day key={ymd(d)} date={d} items={byDay[ymd(d)] || []} busy={busyByDay[ymd(d)] || []} inMonth={isSameMonth(d, month)}
+                <Day key={ymd(d)} date={d} items={byDay[ymd(d)] || []} busy={busyByDay[ymd(d)] || []} maybes={maybeByDay[ymd(d)] || []} inMonth={isSameMonth(d, month)}
                   selected={selected === ymd(d)} onSelect={setSelected} onOpen={onOpen} dragId={dragId} />
               ))}
             </div>
@@ -117,11 +126,24 @@ export default function CalendarView({ activities, busy = [], onOpen, onAdd, onB
                   {busyByDay[selected].map((b) => <BusyRow key={b.id} b={b} day={selected} onOpen={() => onBusy({ id: b.id })} />)}
                 </ul>
               )}
-              {dayItems.length ? (
+              {dayItems.length > 0 && (
                 <div className="tickets">
                   {dayItems.map((a) => <Ticket key={a.id} activity={a} onOpen={onOpen} />)}
                 </div>
-              ) : (
+              )}
+              {(maybeByDay[selected] || []).length > 0 && (
+                <div className="maybe-day">
+                  {maybeByDay[selected].map(({ a, o }) => (
+                    <div key={a.id + o.id} className="maybe-pick">
+                      <Ticket activity={a} onOpen={onOpen} />
+                      <button className="btn small" onClick={() => be.update('activities', a.id, { date: o.date, time: o.time || '', options: [] })}>
+                        {o.time ? `Choose ${fmtTime(o.time)}` : 'Choose this day'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!dayItems.length && !(maybeByDay[selected] || []).length && (
                 <p className="muted">Nothing planned. Pick one of your ideas or add something new.</p>
               )}
             </section>
@@ -188,7 +210,7 @@ function BusyRow({ b, day, onOpen }) {
   )
 }
 
-function Day({ date, items, busy, inMonth, selected, onSelect, onOpen, dragId }) {
+function Day({ date, items, busy, maybes = [], inMonth, selected, onSelect, onOpen, dragId }) {
   const id = ymd(date)
   const { setNodeRef, isOver } = useDroppable({ id: `day:${id}` })
   return (
@@ -200,7 +222,7 @@ function Day({ date, items, busy, inMonth, selected, onSelect, onOpen, dragId })
       onClick={() => onSelect(id)}
     >
       <button className="cal-num" onClick={(e) => { e.stopPropagation(); onSelect(id) }}
-        aria-label={`${format(date, 'EEEE, MMMM d')}${items.length ? `, ${items.length} planned` : ''}${busy.length ? `, ${[...new Set(busy.map((b) => personOf(b.person).name))].join(' and ')} busy` : ''}`}>
+        aria-label={`${format(date, 'EEEE, MMMM d')}${items.length ? `, ${items.length} planned` : ''}${maybes.length ? `, ${maybes.length} maybe` : ''}${busy.length ? `, ${[...new Set(busy.map((b) => personOf(b.person).name))].join(' and ')} busy` : ''}`}>
         {format(date, 'd')}
       </button>
       {busy.length > 0 && (
@@ -226,9 +248,13 @@ function Day({ date, items, busy, inMonth, selected, onSelect, onOpen, dragId })
           <DraggableTicket key={a.id} activity={a} onOpen={onOpen} compact hidden={dragId === a.id} />
         ))}
         {items.length > 3 && <span className="more">+{items.length - 3}</span>}
+        {maybes.slice(0, Math.max(0, 3 - items.length)).map(({ a, o }) => (
+          <Ticket key={a.id + o.id} activity={{ ...a, title: `${o.time ? fmtTime(o.time) + ' ' : ''}${a.title}` }} onOpen={onOpen} compact ghost />
+        ))}
       </div>
       <div className="cal-dots" aria-hidden="true">
         {items.slice(0, 4).map((a) => <i key={a.id} style={{ background: catOf(a.category).color }} />)}
+        {maybes.slice(0, Math.max(0, 4 - items.length)).map(({ a, o }) => <i key={a.id + o.id} className="ghost" style={{ '--c': catOf(a.category).color }} />)}
       </div>
     </div>
   )

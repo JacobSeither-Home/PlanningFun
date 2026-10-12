@@ -152,7 +152,7 @@ function Shell({ user }) {
         <QuickAdd
           initial={adding}
           onClose={() => setAdding(null)}
-          onCreated={(id, kind) => { setAdding(null); if (kind === 'idea' && id && adding.openAfter) setOpenId(id) }}
+          onCreated={(id, kind, open) => { setAdding(null); if (kind === 'idea' && id && open) setOpenId(id) }}
         />
       )}
       {busySheet && (busySheet.date || busy.some((b) => b.id === busySheet.id)) && (

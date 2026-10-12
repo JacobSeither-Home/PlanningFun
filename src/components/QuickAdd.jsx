@@ -12,6 +12,7 @@ export default function QuickAdd({ initial, onClose, onCreated }) {
   const [category, setCategory] = useState('out')
   const [watchKind, setWatchKind] = useState('movie')
   const [added, setAdded] = useState([])
+  const [maybe, setMaybe] = useState(false)
 
   const save = async (e) => {
     e?.preventDefault()
@@ -19,11 +20,14 @@ export default function QuickAdd({ initial, onClose, onCreated }) {
     if (!t) return
     setTitle('')
     if (kind === 'idea') {
+      const tentative = initial.date && maybe
       const id = await be.add('activities', {
-        title: t, category, date: initial.date || null, time: '', done: false, items: [],
+        title: t, category, date: tentative ? null : initial.date || null, time: '', done: false, items: [],
+        ...(tentative ? { options: [{ id: Date.now().toString(36), date: initial.date, time: '' }] } : {}),
       })
       setAdded((a) => [t, ...a].slice(0, 4))
-      if (initial.date) onCreated(id, 'idea')
+      // open the new activity so a time, or another possible date, can be added right away
+      if (initial.date) onCreated(id, 'idea', true)
     } else {
       await be.add('watch', { title: t, kind: watchKind, where: '', watched: false })
       setAdded((a) => [t, ...a].slice(0, 4))
@@ -67,11 +71,19 @@ export default function QuickAdd({ initial, onClose, onCreated }) {
         )}
 
         {initial.date && kind === 'idea' && (
-          <p className="muted">Goes on {format(parseISO(initial.date), 'EEEE, MMMM d')}.</p>
+          <>
+            <div className="seg small" role="radiogroup" aria-label="How sure are you?">
+              <button type="button" role="radio" aria-checked={!maybe} onClick={() => setMaybe(false)}>Plan it</button>
+              <button type="button" role="radio" aria-checked={maybe} onClick={() => setMaybe(true)}>Maybe</button>
+            </div>
+            <p className="muted">{maybe
+              ? `Shows faded on ${format(parseISO(initial.date), 'EEEE, MMMM d')}. You can add other possible dates next.`
+              : `Goes on ${format(parseISO(initial.date), 'EEEE, MMMM d')}.`}</p>
+          </>
         )}
 
         <button className="btn primary wide" disabled={!title.trim()}>
-          {kind === 'idea' ? (initial.date ? 'Add to calendar' : 'Add idea') : 'Add to watch list'}
+          {kind === 'idea' ? (initial.date ? (maybe ? 'Add as maybe' : 'Add to calendar') : 'Add idea') : 'Add to watch list'}
         </button>
 
         {added.length > 0 && (

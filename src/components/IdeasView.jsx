@@ -13,12 +13,14 @@ export default function IdeasView({ activities, onOpen, onSurprise }) {
     (!cat || a.category === cat) &&
     (!q || `${a.title} ${a.location || ''} ${a.notes || ''}`.toLowerCase().includes(q.toLowerCase()))
 
-  const { upcoming, ideas, done } = useMemo(() => {
+  const { upcoming, maybes, ideas, done } = useMemo(() => {
     const m = activities.filter(match)
     return {
       upcoming: m.filter((a) => a.date && !a.done && !isBefore(parseISO(a.date), today))
         .sort((x, y) => (x.date + (x.time || '')).localeCompare(y.date + (y.time || ''))),
-      ideas: m.filter((a) => !a.date && !a.done).sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0)),
+      maybes: m.filter((a) => !a.date && !a.done && a.options?.length)
+        .sort((x, y) => firstOpt(x).localeCompare(firstOpt(y))),
+      ideas: m.filter((a) => !a.date && !a.done && !a.options?.length).sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0)),
       done: m.filter((a) => a.done || (a.date && isBefore(parseISO(a.date), today)))
         .sort((x, y) => (y.date || '').localeCompare(x.date || '')),
     }
@@ -60,6 +62,15 @@ export default function IdeasView({ activities, onOpen, onSurprise }) {
         </section>
       )}
 
+      {maybes.length > 0 && (
+        <section className="group">
+          <h2>Maybe <span className="muted">{maybes.length}</span></h2>
+          <div className="tickets">
+            {maybes.map((a) => <Ticket key={a.id} activity={a} onOpen={onOpen} />)}
+          </div>
+        </section>
+      )}
+
       <section className="group">
         <h2>Someday <span className="muted">{ideas.length || ''}</span></h2>
         {ideas.length ? (
@@ -70,6 +81,7 @@ export default function IdeasView({ activities, onOpen, onSurprise }) {
           <div className="empty">
             {q || cat
               ? <p>Nothing matches. Try a different search or category.</p>
+              : activities.length ? <p>No undated ideas right now. Tap + to add one.</p>
               : <p>Tap + to save your first idea. Anything counts: a new taco place, a weekend trip, a board game night.</p>}
           </div>
         )}
@@ -92,3 +104,5 @@ export default function IdeasView({ activities, onOpen, onSurprise }) {
 }
 
 export const fmtDay = (d) => format(parseISO(d), 'EEE MMM d')
+
+const firstOpt = (a) => [...a.options].map((o) => o.date + (o.time || '')).sort()[0] || ''

@@ -323,6 +323,36 @@ textarea { resize: vertical; line-height: 1.45; }
 .overlay-ticket { width: 200px; transform: rotate(-4deg); box-shadow: 0 16px 30px -10px rgba(10, 40, 30, .5); border-radius: 6px; cursor: grabbing; }
 .overlay-ticket .ticket.compact { padding: 4px 0; }
 
+/* maybe: dashed outline, faded stub — on the calendar it reads as a ghost */
+.ticket.maybe { background: color-mix(in srgb, var(--surface) 60%, transparent); box-shadow: inset 0 0 0 1.5px var(--line); }
+.ticket.maybe::after { content: ''; position: absolute; inset: 4px; border: 1.5px dashed color-mix(in srgb, var(--ink-2) 55%, transparent); border-radius: 10px; pointer-events: none; }
+.ticket.maybe .ticket-stub { filter: saturate(.25) opacity(.55); box-shadow: none; }
+.ticket.maybe .ticket-title { color: var(--ink-2); }
+.maybe-tag {
+  display: inline-block; margin-right: 8px; padding: 1px 8px; vertical-align: 2px;
+  border: 1.5px dashed var(--ink-2); border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: .03em; color: var(--ink-2);
+}
+.ticket.compact.maybe { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink-2) 50%, transparent); }
+.ticket.compact.maybe::after { display: none; }
+.ticket.compact.maybe { border: 1px dashed color-mix(in srgb, var(--ink-2) 60%, transparent); box-shadow: none; }
+.cal-dots i.ghost { background: transparent; box-shadow: inset 0 0 0 1.5px var(--c); }
+.maybe-day { display: grid; gap: 10px; margin-top: 10px; }
+.maybe-pick { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.maybe-box { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1.5px dashed color-mix(in srgb, var(--ink-2) 50%, transparent); border-radius: var(--r-md); }
+.maybe-head { display: flex; flex-direction: column; gap: 2px; }
+.maybe-head h3 { margin: 0; font: 400 19px var(--display); color: var(--emerald); }
+@media (prefers-color-scheme: dark) { .maybe-head h3 { color: var(--blush); } }
+.maybe-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.maybe-list li { display: grid; grid-template-columns: auto minmax(84px, 1fr) auto auto; gap: 6px; align-items: start; }
+.maybe-when { padding-top: 12px; font-weight: 600; white-space: nowrap; }
+.maybe-time { min-width: 0; }
+.maybe-list li > .btn { margin-top: 4px; }
+.maybe-list li > .icon-btn { margin-top: 2px; }
+.maybe-list li:has(.tp-panel) .maybe-time { grid-column: 1 / -1; grid-row: 2; }
+.maybe-add { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; }
+.maybe-add .btn { grid-column: 1 / -1; justify-self: start; }
+.maybe-box .link { align-self: flex-start; }
+
 /* ───────── calendar ───────── */
 .cal-layout { display: grid; gap: 24px; }
 .tray { display: none; }

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { format, parseISO } from 'date-fns'
 import Sheet from './Sheet'
 import TimePicker from './TimePicker'
+import { optionText } from './Ticket'
 import { useBackend } from '../lib/hooks'
 import { uid } from '../lib/store'
 import { CATEGORIES, SECTIONS, COST, catOf } from '../lib/constants'
@@ -90,6 +92,8 @@ export default function ActivitySheet({ activity: a, onClose, onOpen }) {
           </div>
         </div>
       </div>
+
+      {!a.date && <MaybeDates a={a} save={save} />}
 
       <label className="field">
         <span>Link</span>
@@ -187,3 +191,50 @@ function TextField({ value, onSave, multiline, rows = 3, enterSaves, className =
 
 const withProto = (u) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
 const strip = ({ id, createdAt, updatedAt, createdBy, ...rest }) => rest
+
+// Possible dates for an activity we haven't committed to. Each shows faded on the calendar.
+function MaybeDates({ a, save }) {
+  const options = [...(a.options || [])].sort((x, y) => (x.date + (x.time || '')).localeCompare(y.date + (y.time || '')))
+  const [date, setDate] = useState('')
+  const [time, setTime] = useState('')
+  const add = () => {
+    if (!date) return
+    save({ options: [...options, { id: uid(), date, time }] })
+    setDate(''); setTime('')
+  }
+  return (
+    <section className="maybe-box" aria-label="Possible dates">
+      <div className="maybe-head">
+        <h3>Possible dates</h3>
+        <span className="muted small">Not booked yet. Each shows faded on the calendar.</span>
+      </div>
+      {options.length > 0 && (
+        <ul className="maybe-list">
+          {options.map((o) => (
+            <li key={o.id}>
+              <span className="maybe-when">{format(parseISO(o.date), 'EEE, MMM d')}</span>
+              <div className="maybe-time">
+                <TimePicker label={`Time on ${format(parseISO(o.date), 'MMM d')}`} value={o.time || ''} emptyLabel="Any time"
+                  onChange={(time) => save({ options: options.map((x) => (x.id === o.id ? { ...x, time } : x)) })} />
+              </div>
+              <button type="button" className="btn small primary"
+                onClick={() => save({ date: o.date, time: o.time || '', options: [] })}>Choose</button>
+              <button type="button" className="icon-btn" aria-label={`Remove ${optionText(o)}`}
+                onClick={() => save({ options: options.filter((x) => x.id !== o.id) })}>
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="maybe-add">
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Possible date" />
+        <TimePicker label="Possible time" value={time} onChange={setTime} emptyLabel="Any time" />
+        <button type="button" className="btn small" disabled={!date} onClick={add}>Add option</button>
+      </div>
+      {options.length > 0 && (
+        <button type="button" className="link" onClick={() => save({ options: [] })}>Not doing it, clear the dates</button>
+      )}
+    </section>
+  )
+}
