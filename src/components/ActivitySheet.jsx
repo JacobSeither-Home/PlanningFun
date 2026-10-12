@@ -72,6 +72,12 @@ export default function ActivitySheet({ activity: a, onClose, onOpen }) {
             <input id="activity-date" type="date" value={a.date || ''} onChange={(e) => save({ date: e.target.value || null })} />
             {a.date && <button type="button" className="link" onClick={() => save({ date: null, time: '' })}>Clear</button>}
           </div>
+          {a.date && (
+            <button type="button" className="link make-maybe"
+              onClick={() => save({ date: null, time: '', options: [{ id: uid(), date: a.date, time: a.time || '' }, ...(a.options || [])] })}>
+              Not sure yet? Make it a maybe
+            </button>
+          )}
         </div>
         <div className="field">
           <span>Time</span>

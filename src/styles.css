@@ -491,6 +491,10 @@ textarea { resize: vertical; line-height: 1.45; }
 .detail-input { flex: 1 1 160px; min-height: 38px !important; padding: 6px 10px !important; font-size: 15px; }
 .checklist form input { min-height: 42px; }
 
+/* inside sheets, chips wrap so every option is visible (no hidden sideways scroll) */
+.sheet .chips.scroll { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; }
+.make-maybe { align-self: flex-start; padding: 2px 0; font-size: 14px; }
+
 /* time picker */
 .tp { display: flex; flex-direction: column; gap: 8px; }
 .tp-value {
