@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { format, parseISO } from 'date-fns'
 import Sheet from './Sheet'
 import TimePicker from './TimePicker'
 import { useBackend } from '../lib/hooks'
@@ -16,10 +17,12 @@ export default function BusySheet({ busy, date, onClose }) {
     to: busy?.to || '',
     note: busy?.note || '',
   }))
-  const [allDay, setAllDay] = useState(busy ? !busy.from : true)
+  const [allDay, setAllDay] = useState(busy ? !(busy.from || busy.to) : true)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const set = (patch) => setF((x) => ({ ...x, ...patch }))
   const valid = f.start && f.end >= f.start
+  const multi = valid && f.end > f.start
+  const day = (d) => format(parseISO(d), 'EEE MMM d')
 
   const save = async () => {
     if (!valid) return
@@ -84,19 +87,20 @@ export default function BusySheet({ busy, date, onClose }) {
         <span id="busy-when">Hours</span>
         <div className="seg small" role="radiogroup" aria-labelledby="busy-when">
           <button type="button" role="radio" aria-checked={allDay} onClick={() => setAllDay(true)}>All day</button>
-          <button type="button" role="radio" aria-checked={!allDay} onClick={() => setAllDay(false)}>Set times</button>
+          <button type="button" role="radio" aria-checked={!allDay} onClick={() => setAllDay(false)}>{multi ? 'Set start/end times' : 'Set times'}</button>
         </div>
       </div>
       {!allDay && (
         <div className="grid2">
           <div className="field">
-            <span>Starts</span>
+            <span>{multi ? `Starts ${day(f.start)}` : 'Starts'}</span>
             <TimePicker label="Starts" value={f.from} onChange={(from) => set({ from })} />
           </div>
           <div className="field">
-            <span>Ends</span>
+            <span>{multi ? `Ends ${day(f.end)}` : 'Ends'}</span>
             <TimePicker label="Ends" value={f.to} onChange={(to) => set({ to })} />
           </div>
+          {multi && <p className="muted small span2">Days in between count as busy all day. Leave a time empty to make that day all day too.</p>}
         </div>
       )}
     </Sheet>

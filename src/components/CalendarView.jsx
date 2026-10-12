@@ -10,7 +10,7 @@ import {
 import Ticket from './Ticket'
 import Sheet from './Sheet'
 import { useBackend } from '../lib/hooks'
-import { catOf, personOf } from '../lib/constants'
+import { busySlice, catOf, personOf } from '../lib/constants'
 import { fmtTime } from './Ticket'
 
 const ymd = (d) => format(d, 'yyyy-MM-dd')
@@ -51,7 +51,8 @@ export default function CalendarView({ activities, busy = [], onOpen, onAdd, onB
       const end = parseISO(b.end && b.end >= b.start ? b.end : b.start)
       for (let i = 0; d <= end && i < 120; i++, d = addDays(d, 1)) (m[ymd(d)] ||= []).push(b)
     })
-    Object.values(m).forEach((l) => l.sort((x, y) => (x.from || '').localeCompare(y.from || '') || x.person.localeCompare(y.person)))
+    Object.entries(m).forEach(([day, l]) => l.sort((x, y) =>
+      busySlice(x, day).s - busySlice(y, day).s || x.person.localeCompare(y.person)))
     return m
   }, [busy])
 
@@ -113,7 +114,7 @@ export default function CalendarView({ activities, busy = [], onOpen, onAdd, onB
               </div>
               {(busyByDay[selected] || []).length > 0 && (
                 <ul className="busy-list" aria-label="Busy">
-                  {busyByDay[selected].map((b) => <BusyRow key={b.id} b={b} onOpen={() => onBusy({ id: b.id })} />)}
+                  {busyByDay[selected].map((b) => <BusyRow key={b.id} b={b} day={selected} onOpen={() => onBusy({ id: b.id })} />)}
                 </ul>
               )}
               {dayItems.length ? (
@@ -169,17 +170,18 @@ function DraggableTicket({ activity, onOpen, compact, hidden }) {
   )
 }
 
-function BusyRow({ b, onOpen }) {
+function BusyRow({ b, day, onOpen }) {
   const p = personOf(b.person)
-  const multi = b.end && b.end !== b.start
+  const slice = busySlice(b, day)
+  const multi = slice.multi
   return (
     <li>
       <button className="busy-row" style={{ '--who': p.color }} onClick={onOpen}>
         <span className="busy-who">{p.name} busy</span>
         <span className="busy-what">{b.note || 'Busy'}</span>
         <span className="busy-when">
-          {b.from ? `${fmtTime(b.from)}${b.to ? `–${fmtTime(b.to)}` : ''}` : 'All day'}
-          {multi && `, ${format(parseISO(b.start), 'MMM d')}–${format(parseISO(b.end), 'MMM d')}`}
+          {slice.label}
+          {multi && ` (part of ${format(parseISO(b.start), 'EEE MMM d')}${b.from ? ` ${fmtTime(b.from)}` : ''} to ${format(parseISO(b.end), 'EEE MMM d')}${b.to ? ` ${fmtTime(b.to)}` : ''})`}
         </span>
       </button>
     </li>
@@ -203,11 +205,20 @@ function Day({ date, items, busy, inMonth, selected, onSelect, onOpen, dragId })
       </button>
       {busy.length > 0 && (
         <div className="cal-busy" aria-hidden="true">
-          {[...new Set(busy.map((b) => b.person))].map((id) => (
-            <span key={id} style={{ '--who': personOf(id).color }}>
-              <b className="b-initial">{personOf(id).name[0]}</b><b className="b-name">{personOf(id).name} busy</b>
-            </span>
-          ))}
+          {busy.slice(0, 3).map((b) => {
+            const p = personOf(b.person)
+            const sl = busySlice(b, id)
+            return (
+              <div key={b.id} className="busy-lane">
+                <span className="busy-tag">{p.name}{sl.label !== 'All day' ? ` ${sl.label.toLowerCase()}` : ''}</span>
+                <span className={`busy-track${sl.contL ? ' cl' : ''}${sl.contR ? ' cr' : ''}`}>
+                  <i style={{ '--who': p.color, left: `${sl.s * 100}%`, right: `${(1 - sl.e) * 100}%` }}>
+                    {sl.e - sl.s >= 0.35 && <b>{p.name[0]}</b>}
+                  </i>
+                </span>
+              </div>
+            )
+          })}
         </div>
       )}
       <div className="cal-items">

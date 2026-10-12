@@ -8,7 +8,7 @@ Jacob's and his girlfriend's shared planner: save activity ideas, put them on a 
 
 - **Ideas.** Saved activities shown as ticket stubs, colored by category. Search, filter, and "Surprise us" to pick a random idea.
 - **Calendar.** Month view. On a computer, drag ideas from the Someday tray onto a day, between days, or back to the tray. On a phone, tap a day, then "Pick an idea" or "New".
-- **Busy times.** On the calendar, "Mark busy" records when Jacob or Caroline is busy on their own, all day or for set hours, across one or several days. Shown as hatched J/C tags on phones and named tags on computers.
+- **Busy times.** On the calendar, "Mark busy" records when Jacob or Caroline is busy on their own, all day or for set hours, across one or several days. Each busy time draws as a bar positioned by time of day: for a multi-day stretch the start time applies to the first day, the end time to the last, and days between are full. Tapping a day shows that day's part ("From 3pm", "All day", "Until 11am").
 - **Activity details.** Date, time (tap-only picker, no phone time wheel), place, cost, link and notes, plus Packing, Reservations and Meals checklists. "Do it again" copies an activity with its checklists reset.
 - **Drinks.** Rate drinks you order around town from 1 (gross) to 10 (awesome). Each of you rates separately and the list ranks by your average. Types start with Old Fashioned (with spirit) and Beer (with type), and you can add more, like Sazerac.
 - **Watch list.** Quick-add movies and shows, note where to watch them, check them off, and "Pick for tonight".

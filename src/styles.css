@@ -481,13 +481,21 @@ textarea { resize: vertical; line-height: 1.45; }
 .tp-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
 .tp-row.end { justify-content: flex-end; }
 
-/* busy times: hatched, tagged by person */
-.cal-busy { display: flex; gap: 2px; justify-content: center; }
-.cal-busy span {
-  display: grid; place-items: center; width: 17px; height: 17px; border-radius: 4px;
-  font-size: 11px; font-weight: 700; color: #fff; line-height: 1;
+/* busy times: a bar per entry, positioned by time of day */
+.cal-busy { display: flex; flex-direction: column; gap: 3px; align-self: stretch; margin: 0 -2px; }
+.busy-lane { display: flex; flex-direction: column; gap: 1px; }
+.busy-tag { display: none; }
+.busy-track { position: relative; display: block; height: 12px; }
+.busy-track i {
+  position: absolute; top: 0; bottom: 0; display: flex; align-items: center; padding-left: 3px; overflow: hidden;
+  border-radius: 6px;
   background: repeating-linear-gradient(-45deg, var(--who) 0 3px, color-mix(in srgb, var(--who) 70%, #000) 3px 5px);
 }
+/* flat, edge-to-edge ends where the busy time carries over from or into the next day */
+.busy-track.cl i { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -2px; }
+.busy-track.cr i { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: -2px; }
+.busy-track b { font-size: 9px; font-weight: 700; color: #fff; line-height: 1; }
+.span2 { grid-column: 1 / -1; margin: 0; }
 .busy-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
 .busy-row {
   display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; row-gap: 2px; width: 100%;
@@ -501,14 +509,13 @@ textarea { resize: vertical; line-height: 1.45; }
 @media (prefers-color-scheme: dark) { .busy-who { color: var(--ink); } }
 .busy-what { font-weight: 600; }
 .busy-when { flex-basis: 100%; font-size: 14px; color: var(--ink-2); }
-.cal-busy b { font-weight: 700; }
-.cal-busy .b-name { display: none; }
 @media (min-width: 860px) {
-  .cal-busy { flex-direction: column; gap: 2px; margin: -2px 0 2px; }
-  .cal-busy span { width: auto; height: auto; padding: 2px 6px; place-items: start; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .cal-busy .b-initial { display: none; }
-  .cal-busy .b-name { display: inline; }
+  .cal-busy { margin: -2px -6px 2px; gap: 4px; }
+  .busy-tag { display: block; padding: 0 6px; font-size: 11.5px; font-weight: 700; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .busy-track { height: 8px; }
+  .busy-track b { display: none; }
 }
+
 
 /* watch list */
 .watch-tools { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; margin-bottom: 16px; max-width: 760px; }
