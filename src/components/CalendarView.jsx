@@ -9,13 +9,17 @@ import {
 } from '@dnd-kit/core'
 import Ticket from './Ticket'
 import Votes, { agreed } from './Votes'
-import { dayPart, spanDays } from '../lib/when'
+import { dayPart, isMulti, lastDay, spanDays } from '../lib/when'
 import Sheet from './Sheet'
 import { useBackend } from '../lib/hooks'
 import { busySlice, catOf, personOf } from '../lib/constants'
 import { fmtTime } from './Ticket'
 
 const ymd = (d) => format(d, 'yyyy-MM-dd')
+// multi-day spans first (earliest start first) so their bars stay in the same lane day to day
+const spanOrder = (x, y) => isMulti(y) - isMulti(x) || (isMulti(x) && x.date.localeCompare(y.date)) || (x.time || '99').localeCompare(y.time || '99') || (x.id || '').localeCompare(y.id || '')
+// where a day sits in a span: '' (one-day), 'span-start', 'span-mid' or 'span-end'
+const segOf = (x, d) => !isMulti(x) ? '' : d === x.date ? 'span-start' : d === lastDay(x) ? 'span-end' : 'span-mid'
 // Drop on whatever is under the finger/pointer; fall back to overlap for keyboard drags.
 const collide = (args) => { const hit = pointerWithin(args); return hit.length ? hit : rectIntersection(args) }
 
@@ -42,8 +46,7 @@ export default function CalendarView({ activities, busy = [], onOpen, onAdd, onB
     const m = {}
     // multi-day plans appear on every day they cover
     activities.filter((a) => a.date).forEach((a) => spanDays(a).forEach((d) => { (m[d] ||= []).push(a) }))
-    Object.entries(m).forEach(([d, l]) => l.sort((x, y) =>
-      (x.date < d) - (y.date < d) || (x.time || '99').localeCompare(y.time || '99')))
+    Object.values(m).forEach((l) => l.sort(spanOrder))
     return m
   }, [activities])
 
@@ -52,7 +55,7 @@ export default function CalendarView({ activities, busy = [], onOpen, onAdd, onB
     const m = {}
     activities.filter((a) => !a.date && !a.done && a.options?.length).forEach((a) =>
       a.options.forEach((o) => spanDays(o).forEach((d) => { (m[d] ||= []).push({ a, o }) })))
-    Object.values(m).forEach((l) => l.sort((x, y) => (x.o.time || '99').localeCompare(y.o.time || '99')))
+    Object.values(m).forEach((l) => l.sort((x, y) => spanOrder(x.o, y.o) || x.a.id.localeCompare(y.a.id)))
     return m
   }, [activities])
 
@@ -206,11 +209,11 @@ function Tray({ ideas, onOpen, dragId }) {
   )
 }
 
-function DraggableTicket({ activity, dragKey, onOpen, compact, hidden }) {
+function DraggableTicket({ activity, dragKey, onOpen, compact, hidden, extra }) {
   const { attributes, listeners, setNodeRef } = useDraggable({ id: dragKey || activity.id })
   return (
     <div ref={setNodeRef} style={{ opacity: hidden ? 0.3 : 1 }}>
-      <Ticket activity={activity} onOpen={onOpen} compact={compact} dragProps={{ ...attributes, ...listeners }} />
+      <Ticket activity={activity} onOpen={onOpen} compact={compact} extra={extra} dragProps={{ ...attributes, ...listeners }} />
     </div>
   )
 }
@@ -270,19 +273,35 @@ function Day({ date, items, busy, maybes = [], inMonth, selected, onSelect, onOp
         </div>
       )}
       <div className="cal-items">
-        {items.slice(0, 3).map((a) => (
-          <DraggableTicket key={a.id} dragKey={`${a.id}@${id}`} onOpen={onOpen} compact
-            activity={{ ...a, title: [dayPart(a, id), a.title].filter(Boolean).join(' ') }}
-            hidden={String(dragId || '').split('@')[0] === a.id} />
-        ))}
+        {items.slice(0, 3).map((a) => {
+          const seg = segOf(a, id)
+          // a span is one continuous bar: its name shows where it starts and at the start of each week
+          const label = !seg || seg === 'span-start' || dow === 0 ? [dayPart(a, id), a.title].filter(Boolean).join(' ') : '\u00a0'
+          return (
+            <DraggableTicket key={a.id} dragKey={`${a.id}@${id}`} onOpen={onOpen} compact extra={seg}
+              activity={{ ...a, title: label }}
+              hidden={String(dragId || '').split('@')[0] === a.id} />
+          )
+        })}
         {items.length > 3 && <span className="more">+{items.length - 3}</span>}
-        {maybes.slice(0, Math.max(0, 3 - items.length)).map(({ a, o }) => (
-          <Ticket key={a.id + o.id} activity={{ ...a, title: [agreed(o) ? '♥' : '', dayPart(o, id), a.title].filter(Boolean).join(' ') }} onOpen={onOpen} compact ghost />
+        {maybes.slice(0, Math.max(0, 3 - items.length)).map(({ a, o }) => {
+          const seg = segOf(o, id)
+          const label = !seg || seg === 'span-start' || dow === 0 ? [agreed(o) ? '♥' : '', dayPart(o, id), a.title].filter(Boolean).join(' ') : '\u00a0'
+          return <Ticket key={a.id + o.id} activity={{ ...a, title: label }} onOpen={onOpen} compact ghost extra={seg} />
+        })}
+      </div>
+      {/* phones: multi-day plans as continuous bars, one-day plans as diamonds */}
+      <div className="cal-spans" aria-hidden="true">
+        {items.filter(isMulti).slice(0, 3).map((a) => (
+          <i key={a.id} className={`span-bar ${segOf(a, id)}`} style={{ '--c': catOf(a.category).color }} />
+        ))}
+        {maybes.filter(({ o }) => isMulti(o)).slice(0, 2).map(({ a, o }) => (
+          <i key={a.id + o.id} className={`span-bar ghost ${segOf(o, id)}${agreed(o) ? ' agreed' : ''}`} style={{ '--c': catOf(a.category).color }} />
         ))}
       </div>
       <div className="cal-dots" aria-hidden="true">
-        {items.slice(0, 4).map((a) => <i key={a.id} style={{ background: catOf(a.category).color }} />)}
-        {maybes.slice(0, Math.max(0, 4 - items.length)).map(({ a, o }) => <i key={a.id + o.id} className={`ghost${agreed(o) ? ' agreed' : ''}`} style={{ '--c': catOf(a.category).color }} />)}
+        {items.filter((a) => !isMulti(a)).slice(0, 4).map((a) => <i key={a.id} style={{ background: catOf(a.category).color }} />)}
+        {maybes.filter(({ o }) => !isMulti(o)).slice(0, 3).map(({ a, o }) => <i key={a.id + o.id} className={`ghost${agreed(o) ? ' agreed' : ''}`} style={{ '--c': catOf(a.category).color }} />)}
       </div>
     </div>
   )

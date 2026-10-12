@@ -377,6 +377,16 @@ button.vote { cursor: pointer; min-height: 30px; }
 /* both free: open weekend days get a soft gold glow and a small star */
 .cal-day.free .cal-num { outline: 1.5px dashed var(--gold); outline-offset: -1px; }
 
+/* multi-day spans: one continuous bar, flat where it carries over to the next day */
+.cal-spans { display: flex; flex-direction: column; gap: 2px; align-self: stretch; margin: 0 -2px; }
+.cal-spans:empty { display: none; }
+.span-bar { display: block; height: 6px; border-radius: 3px; background: var(--c); }
+.span-bar.span-start { margin-right: -4px; border-top-right-radius: 0; border-bottom-right-radius: 0; margin-left: 2px; }
+.span-bar.span-mid { margin: 0 -4px; border-radius: 0; }
+.span-bar.span-end { margin-left: -4px; border-top-left-radius: 0; border-bottom-left-radius: 0; margin-right: 2px; }
+.span-bar.ghost { background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--c) 55%, transparent) 0 5px, transparent 5px 8px); }
+.span-bar.ghost.agreed { background: color-mix(in srgb, var(--c) 55%, transparent); }
+
 /* ───────── calendar ───────── */
 .cal-layout { display: grid; gap: 24px; }
 .tray { display: none; }
@@ -427,7 +437,15 @@ button.vote { cursor: pointer; min-height: 30px; }
   .cal-num { width: 30px; height: 30px; font-size: 15px; }
   .cal-items { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .cal-items .ticket { background: color-mix(in srgb, var(--cat) 16%, var(--surface)); }
-  .cal-dots { display: none; }
+  .cal-dots, .cal-spans { display: none; }
+  /* desktop: span tickets reach the cell edges and join their neighbors */
+  .cal-items .ticket.span-start { margin-right: -8px; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .cal-items .ticket.span-mid { margin: 0 -8px; border-radius: 0; }
+  .cal-items .ticket.span-end { margin-left: -8px; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  .cal-items .ticket.span-mid .ticket-stub, .cal-items .ticket.span-end .ticket-stub { visibility: hidden; }
+  .cal-items .ticket.compact.maybe.span-start { border-right-style: none; }
+  .cal-items .ticket.compact.maybe.span-mid { border-left-style: none; border-right-style: none; }
+  .cal-items .ticket.compact.maybe.span-end { border-left-style: none; }
   .cal-day.free { outline: 1.5px dashed color-mix(in srgb, var(--gold) 80%, transparent); outline-offset: -5px; }
   .cal-day.free .cal-num { outline: 0; }
   .cal-day.free::after { content: '✦ both free'; position: absolute; right: 8px; bottom: 6px; font-size: 11px; font-weight: 600; color: var(--gold); }

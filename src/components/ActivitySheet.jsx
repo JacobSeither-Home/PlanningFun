@@ -35,7 +35,7 @@ export default function ActivitySheet({ activity: a, onClose, onOpen, templates 
               <button className="btn ghost" onClick={() => setConfirmDelete(true)}>Delete</button>
               <button className="btn ghost" onClick={async () => {
                 const id = await be.add('activities', {
-                  ...strip(a), date: null, time: '', endDate: null, endTime: '', options: [], done: false,
+                  ...strip(a), date: null, time: '', endDate: null, endTime: '', options: [], bookedFrom: null, done: false,
                   items: items.map((i) => ({ ...i, id: uid(), done: false })),
                 })
                 onOpen(id)

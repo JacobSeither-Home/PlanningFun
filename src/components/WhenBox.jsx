@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import TimePicker from './TimePicker'
-import Votes from './Votes'
+import Votes, { agreed } from './Votes'
 import { useBackend } from '../lib/hooks'
 import { uid } from '../lib/store'
 import { openIcs } from '../lib/ics'
-import { isMulti, lastDay } from '../lib/when'
+import { fmtTime, isMulti, lastDay } from '../lib/when'
 
 const sortOpts = (o) => [...(o || [])].sort((x, y) => (x.date + (x.time || '')).localeCompare(y.date + (y.time || '')))
 const short = (d) => format(parseISO(d), 'EEE, MMM d')
@@ -17,28 +17,41 @@ export default function WhenBox({ a }) {
   const options = sortOpts(a.options)
   const derived = a.date ? 'booked' : options.length ? 'maybe' : null
   const [mode, setMode] = useState(derived || 'booked')
-  const [hint, setHint] = useState('')
   useEffect(() => { if (derived) setMode(derived) }, [derived])
+  // the "add an option" fields live here so they survive switching modes
+  const [draft, setDraft] = useState({ date: '', time: '', endDate: '', endTime: '' })
+  const span = (o) => ({ date: o.date, time: o.time || '', endDate: o.endDate && o.endDate > o.date ? o.endDate : null, endTime: o.endTime || '' })
 
-  const choose = (o) => {
-    save({ date: o.date, time: o.time || '', endDate: o.endDate || null, endTime: o.endTime || '', options: [] })
-    setHint('')
-  }
+  // Choose = decided: book it and drop the other options.
+  const choose = (o) => save({ ...span(o), options: [], bookedFrom: null })
+
+  // Switching modes never loses anything:
+  // Booked -> Maybe: the booked dates become (or update) an option.
   const toMaybe = () => {
-    setHint('')
+    if (mode === 'maybe') return
     if (a.date) {
-      save({
-        date: null, time: '', endDate: null, endTime: '',
-        options: [{ id: uid(), date: a.date, time: a.time || '', endDate: a.endDate || null, endTime: a.endTime || '' }, ...(a.options || [])],
-      })
+      const cur = span(a)
+      const all = a.options || []
+      const opts = a.bookedFrom && all.some((o) => o.id === a.bookedFrom)
+        ? all.map((o) => (o.id === a.bookedFrom ? { ...o, ...cur } : o))
+        : [{ id: uid(), ...cur }, ...all]
+      save({ date: null, time: '', endDate: null, endTime: '', bookedFrom: null, options: opts })
     }
+    setDraft({ date: '', time: '', endDate: '', endTime: '' })
     setMode('maybe')
   }
+  // Maybe -> Booked: book the favorite option (or the one typed in) but keep the rest saved.
   const toBooked = () => {
-    if (options.length === 1) choose(options[0])
-    else if (options.length > 1) setHint('Tap Choose on the option you picked.')
-    else setMode('booked')
+    if (mode === 'booked') return
+    if (draft.date && !options.length) {
+      save(span(draft))
+    } else if (options.length) {
+      const o = options.find(agreed) || options[0]
+      save({ ...span(o), bookedFrom: o.id })
+    }
+    setMode('booked')
   }
+  const others = a.date ? (a.options || []).filter((o) => o.id !== a.bookedFrom) : []
 
   return (
     <section className="when" aria-label="When">
@@ -49,7 +62,6 @@ export default function WhenBox({ a }) {
           <button type="button" role="radio" aria-checked={mode === 'maybe'} onClick={toMaybe}>Maybe</button>
         </div>
       </div>
-      {hint && <p className="small when-hint" role="status">{hint}</p>}
 
       {mode === 'booked' ? (
         <>
@@ -79,6 +91,9 @@ export default function WhenBox({ a }) {
                 onChange={(endTime) => save({ endTime })} />
             </div>
           </div>
+          {others.length > 0 && (
+            <p className="muted small">{others.length} other {others.length === 1 ? 'option is' : 'options are'} saved. Switch to Maybe to see {others.length === 1 ? 'it' : 'them'}.</p>
+          )}
           {a.date && (
             <div className="date-links">
               {isMulti(a) && <span className="muted small">{Math.round((parseISO(lastDay(a)) - parseISO(a.date)) / 864e5) + 1} days</span>}
@@ -88,23 +103,21 @@ export default function WhenBox({ a }) {
           )}
         </>
       ) : (
-        <MaybeOptions a={a} options={options} save={save} choose={choose} />
+        <MaybeOptions a={a} options={options} save={save} choose={choose} draft={draft} setDraft={setDraft} />
       )}
     </section>
   )
 }
 
-function MaybeOptions({ a, options, save, choose }) {
+function MaybeOptions({ a, options, save, choose, draft, setDraft }) {
   const last = options[options.length - 1]
-  const [date, setDate] = useState('')
-  const [time, setTime] = useState('')
-  const [end, setEnd] = useState('')
   const [k, setK] = useState(0)
-  const start = date || last?.date || ''
+  const start = draft.date || last?.date || ''
+  const set = (patch) => setDraft((d) => ({ ...d, ...patch }))
   const add = () => {
     if (!start) return
-    save({ options: [...options, { id: uid(), date: start, time, endDate: end && end > start ? end : null, endTime: '' }] })
-    setTime(''); setEnd(''); setK((n) => n + 1)
+    save({ options: [...options, { id: uid(), date: start, time: draft.time, endDate: draft.endDate && draft.endDate > start ? draft.endDate : null, endTime: draft.endTime }] })
+    setDraft({ date: '', time: '', endDate: '', endTime: '' }); setK((n) => n + 1)
   }
   return (
     <>
@@ -115,6 +128,7 @@ function MaybeOptions({ a, options, save, choose }) {
             <li key={o.id}>
               <span className="maybe-when">
                 {short(o.date)}{isMulti(o) && <span className="maybe-thru"> – {short(lastDay(o))}</span>}
+                {o.endTime && <span className="muted">, until {fmtTime(o.endTime)}</span>}
               </span>
               <div className="maybe-time">
                 <TimePicker label={`Time on ${format(parseISO(o.date), 'MMM d')}`} value={o.time || ''} emptyLabel="Any time"
@@ -133,15 +147,19 @@ function MaybeOptions({ a, options, save, choose }) {
       <div className="maybe-add">
         <div className="field">
           <span>Starts</span>
-          <input type="date" value={start} onChange={(e) => setDate(e.target.value)} aria-label="Possible start date" />
+          <input type="date" value={start} onChange={(e) => set({ date: e.target.value })} aria-label="Possible start date" />
         </div>
         <div className="field">
           <span>Time</span>
-          <TimePicker key={k} label="Possible time" value={time} onChange={setTime} emptyLabel="Any time" />
+          <TimePicker key={k} label="Possible time" value={draft.time} onChange={(time) => set({ time })} emptyLabel="Any time" />
         </div>
         <div className="field">
           <span>Through <span className="muted">(optional)</span></span>
-          <input type="date" value={end} min={start || undefined} onChange={(e) => setEnd(e.target.value)} aria-label="Possible end date" />
+          <input type="date" value={draft.endDate} min={start || undefined} onChange={(e) => set({ endDate: e.target.value })} aria-label="Possible end date" />
+        </div>
+        <div className="field">
+          <span>End time <span className="muted">(optional)</span></span>
+          <TimePicker key={'e' + k} label="Possible end time" value={draft.endTime} onChange={(endTime) => set({ endTime })} emptyLabel="Optional" />
         </div>
         <button type="button" className="btn small" disabled={!start} onClick={add}>
           {options.length ? 'Add another option' : 'Add option'}

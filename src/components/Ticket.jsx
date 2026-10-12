@@ -3,7 +3,7 @@ import { catOf, COST } from '../lib/constants'
 import { spanText } from '../lib/when'
 
 // An activity drawn as a ticket stub. The stub color is the category.
-export default function Ticket({ activity: a, onOpen, compact, dragProps, dragging, ghost }) {
+export default function Ticket({ activity: a, onOpen, compact, dragProps, dragging, ghost, extra }) {
   const cat = catOf(a.category)
   const items = a.items || []
   const left = items.filter((i) => !i.done).length
@@ -12,7 +12,7 @@ export default function Ticket({ activity: a, onOpen, compact, dragProps, draggi
   return (
     <button
       type="button"
-      className={`ticket${compact ? ' compact' : ''}${a.done ? ' done' : ''}${dragging ? ' dragging' : ''}${maybe ? ' maybe' : ''}`}
+      className={`ticket${compact ? ' compact' : ''}${a.done ? ' done' : ''}${dragging ? ' dragging' : ''}${maybe ? ' maybe' : ''}${extra ? ' ' + extra : ''}`}
       style={{ '--cat': cat.color }}
       onClick={() => onOpen?.(a.id)}
       {...dragProps}
