@@ -41,13 +41,26 @@ export async function providers(key, mediaType, id) {
   return ''
 }
 
+// TMDB names movie and TV genres a little differently; fold the pairs together
+// so a sci-fi movie and a sci-fi show land in the same group.
+const GENRE_ALIAS = {
+  'Science Fiction': 'Sci-Fi', 'Sci-Fi & Fantasy': 'Sci-Fi', 'Action & Adventure': 'Action',
+  'War & Politics': 'War', 'TV Movie': 'Movie night',
+}
+// Genre names for a title, e.g. ['Drama', 'Sci-Fi'].
+export async function genres(key, mediaType, id) {
+  const data = await get(key, `/${mediaType}/${id}`, { language: 'en-US' })
+  return [...new Set((data.genres || []).map((g) => GENRE_ALIAS[g.name] || g.name))]
+}
+
 // Everything to store on a watch item for a chosen match.
 export async function details(key, match) {
-  let where = ''
+  let where = '', g = []
   try { where = await providers(key, match.mediaType, match.tmdbId) } catch { /* keep going without it */ }
+  try { g = await genres(key, match.mediaType, match.tmdbId) } catch { /* same */ }
   return {
     tmdbId: match.tmdbId, mediaType: match.mediaType, poster: match.poster || null, year: match.year || '',
-    kind: match.mediaType === 'tv' ? 'show' : 'movie', where,
+    kind: match.mediaType === 'tv' ? 'show' : 'movie', where, genres: g,
   }
 }
 

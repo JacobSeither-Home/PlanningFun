@@ -1,6 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
+import {
+  DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors,
+} from '@dnd-kit/core'
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useBackend } from '../lib/hooks'
-import { autoMatch, details, poster, search } from '../lib/tmdb'
+import { autoMatch, details, genres, poster, search } from '../lib/tmdb'
+
+// Our order: a dragged title gets a `rank`; anything never dragged uses -createdAt,
+// so new titles still land on top and existing lists keep their current order.
+const rankOf = (i) => (typeof i.rank === 'number' ? i.rank : -(i.createdAt || 0))
+const byRank = (x, y) => rankOf(x) - rankOf(y)
+const sortTitle = (t = '') => t.replace(/^(the|a|an)\s+/i, '').toLowerCase()
+const byTitle = (x, y) => sortTitle(x.title).localeCompare(sortTitle(y.title))
+const SORTS = [['ours', 'Our order'], ['az', 'A–Z'], ['genre', 'Genre']]
+const loadSort = () => { try { return localStorage.getItem('pf:watchSort') || 'ours' } catch { return 'ours' } }
 
 export default function WatchView({ items, onSurprise, tmdbKey }) {
   const be = useBackend()
@@ -8,6 +22,22 @@ export default function WatchView({ items, onSurprise, tmdbKey }) {
   const [kind, setKind] = useState('movie')
   const [tab, setTab] = useState('todo')
   const [filter, setFilter] = useState('all')
+  const [sort, setSortState] = useState(loadSort)
+  const setSort = (v) => { try { localStorage.setItem('pf:watchSort', v) } catch { /* private mode */ } setSortState(v) }
+
+  // titles matched before genres were saved: fill them in quietly, once each
+  const filled = useRef(new Set())
+  useEffect(() => {
+    if (sort !== 'genre' || !tmdbKey) return
+    const todo = items.filter((i) => i.tmdbId && i.mediaType && !i.genres && !filled.current.has(i.id))
+    if (!todo.length) return
+    todo.forEach((i) => filled.current.add(i.id))
+    ;(async () => {
+      for (const i of todo) {
+        try { await be.update('watch', i.id, { genres: await genres(tmdbKey, i.mediaType, i.tmdbId) }) } catch { /* try next time */ }
+      }
+    })()
+  }, [sort, tmdbKey, items, be])
 
   const [hits, setHits] = useState([])
   const timer = useRef()
@@ -38,7 +68,29 @@ export default function WatchView({ items, onSurprise, tmdbKey }) {
   const list = items
     .filter((i) => (tab === 'todo' ? !i.watched : i.watched))
     .filter((i) => filter === 'all' || i.kind === filter)
-    .sort((x, y) => tab === 'todo' ? (y.createdAt || 0) - (x.createdAt || 0) : (y.updatedAt || 0) - (x.updatedAt || 0))
+    .sort(sort === 'az' ? byTitle : tab === 'todo' || sort === 'genre' ? byRank : (x, y) => (y.updatedAt || 0) - (x.updatedAt || 0))
+  if (tab === 'done' && sort === 'genre') list.sort((x, y) => (y.updatedAt || 0) - (x.updatedAt || 0))
+  const draggable = tab === 'todo' && sort === 'ours'
+
+  // genre groups: each title under its first genre, groups A–Z, untagged last
+  const groups = sort === 'genre' ? Object.entries(list.reduce((m, i) => {
+    const g = i.genres?.[0] || 'No genre yet'; (m[g] ||= []).push(i); return m
+  }, {})).sort(([a], [b]) => (a === 'No genre yet') - (b === 'No genre yet') || a.localeCompare(b)) : null
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+  const onDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return
+    const from = list.findIndex((i) => i.id === active.id)
+    const to = list.findIndex((i) => i.id === over.id)
+    const moved = arrayMove(list, from, to)
+    // new rank sits between its new neighbors, so only the moved title is saved
+    const prev = moved[to - 1], next = moved[to + 1]
+    const rank = prev && next ? (rankOf(prev) + rankOf(next)) / 2 : prev ? rankOf(prev) + 1000 : rankOf(next) - 1000
+    be.update('watch', active.id, { rank })
+  }
 
   return (
     <div className="view">
@@ -77,17 +129,40 @@ export default function WatchView({ items, onSurprise, tmdbKey }) {
           <button role="tab" aria-selected={tab === 'todo'} onClick={() => setTab('todo')}>To watch <span className="count">{todo.length}</span></button>
           <button role="tab" aria-selected={tab === 'done'} onClick={() => setTab('done')}>Watched</button>
         </div>
-        <div className="seg small" role="radiogroup" aria-label="Show">
-          {[['all', 'All'], ['movie', 'Movies'], ['show', 'Shows']].map(([id, l]) => (
-            <button key={id} role="radio" aria-checked={filter === id} onClick={() => setFilter(id)}>{l}</button>
-          ))}
+        <div className="watch-tools-r">
+          <div className="seg small" role="radiogroup" aria-label="Show">
+            {[['all', 'All'], ['movie', 'Movies'], ['show', 'Shows']].map(([id, l]) => (
+              <button key={id} role="radio" aria-checked={filter === id} onClick={() => setFilter(id)}>{l}</button>
+            ))}
+          </div>
+          <label className="sort-pill">
+            <span className="sr-only">Sort</span>
+            <select value={sort} onChange={(e) => setSort(e.target.value)}>
+              {SORTS.map(([id, l]) => <option key={id} value={id}>{l}</option>)}
+            </select>
+          </label>
         </div>
       </div>
+      {draggable && list.length > 1 && <p className="muted small watch-hint">Drag a poster to reorder. Top is next up.</p>}
+      {sort === 'genre' && !tmdbKey && <p className="muted small watch-hint">Genres come from TMDB. Add a key in Settings to fill them in.</p>}
 
       {list.length ? (
-        <ul className="watch-list">
-          {list.map((i) => <WatchRow key={i.id} item={i} />)}
-        </ul>
+        groups ? (
+          groups.map(([g, rows]) => (
+            <section key={g} className="watch-group">
+              <h2 className="watch-genre">{g} <span className="count">{rows.length}</span></h2>
+              <ul className="watch-list">{rows.map((i) => <WatchRow key={i.id} item={i} />)}</ul>
+            </section>
+          ))
+        ) : draggable ? (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={list.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+              <ul className="watch-list">{list.map((i) => <SortableRow key={i.id} item={i} />)}</ul>
+            </SortableContext>
+          </DndContext>
+        ) : (
+          <ul className="watch-list">{list.map((i) => <WatchRow key={i.id} item={i} />)}</ul>
+        )
       ) : (
         <div className="empty">
           <p>{tab === 'todo' ? 'Nothing queued. Add a movie or show you both want to see.' : 'Nothing marked watched yet.'}</p>
@@ -97,20 +172,33 @@ export default function WatchView({ items, onSurprise, tmdbKey }) {
   )
 }
 
-function WatchRow({ item: i }) {
+function SortableRow({ item }) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  return (
+    <WatchRow item={item} rowRef={setNodeRef} dragging={isDragging}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      handle={{ ref: setActivatorNodeRef, ...attributes, ...listeners, 'aria-label': `Reorder ${item.title}`, 'aria-roledescription': 'sortable' }} />
+  )
+}
+
+function WatchRow({ item: i, rowRef, style, handle, dragging }) {
   const be = useBackend()
   const [where, setWhere] = useState(i.where || '')
   useEffect(() => setWhere(i.where || ''), [i.where])
+  const art = i.poster
+    ? <img className="watch-poster" src={poster(i.poster, 'w154')} alt="" loading="lazy" draggable="false" />
+    : <span className="watch-poster blank" aria-label={i.kind === 'show' ? 'Show' : 'Movie'}>{i.kind === 'show' ? '📺' : '🎬'}</span>
   return (
-    <li className={`watch-row${i.watched ? ' is-done' : ''}`}>
-      {/* poster runs the full height of the row, edge to edge */}
-      {i.poster
-        ? <img className="watch-poster" src={poster(i.poster, 'w154')} alt="" loading="lazy" />
-        : <span className="watch-poster blank" aria-label={i.kind === 'show' ? 'Show' : 'Movie'}>{i.kind === 'show' ? '📺' : '🎬'}</span>}
+    <li ref={rowRef} style={style} className={`watch-row${i.watched ? ' is-done' : ''}${dragging ? ' is-dragging' : ''}`}>
+      {/* poster runs the full height of the row, edge to edge; in Our order it's the drag handle */}
+      {handle
+        ? <button type="button" className="watch-grip" {...handle}>{art}<span className="grip-dots" aria-hidden="true" /></button>
+        : art}
       <label className="check">
         <input type="checkbox" checked={i.watched} onChange={() => be.update('watch', i.id, { watched: !i.watched })} />
         <span className="box" aria-hidden="true" />
-        <span className="check-text">{i.title}{i.year && <span className="watch-year"> {i.year}</span>}</span>
+        <span className="check-text">{i.title}{i.year && <span className="watch-year"> {i.year}</span>}
+          {i.genres?.length > 0 && <span className="watch-genres">{i.genres.slice(0, 3).join(' · ')}</span>}</span>
       </label>
       <input className="where" value={where} placeholder="Where to watch" aria-label={`Where to watch ${i.title}`}
         onChange={(e) => setWhere(e.target.value)}
