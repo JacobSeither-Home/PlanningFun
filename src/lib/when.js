@@ -1,6 +1,6 @@
 // Dates that may span several days. Used by booked plans (date/time → endDate/endTime)
 // and by maybe options, which have the same shape.
-import { addDays, format, parseISO } from 'date-fns'
+import { addDays, addMinutes, differenceInMinutes, format, parseISO } from 'date-fns'
 
 const ymd = (d) => format(d, 'yyyy-MM-dd')
 export const lastDay = (x) => (x.endDate && x.endDate > x.date ? x.endDate : x.date)
@@ -41,4 +41,42 @@ export function dayPart(x, d) {
   if (first && x.time) return fmtTime(x.time)
   if (!first) return last && x.endTime ? `until ${fmtTime(x.endTime)}` : '↳'
   return ''
+}
+
+// Maybe options use a length instead of an end time. The length is saved as
+// `length` ('90' = minutes, 'd3' = 3 days) and turned into endDate/endTime so the
+// calendar, booking and phone-calendar export keep working unchanged.
+export const LENGTHS = [
+  ['30', '30 min'], ['60', '1 hr'], ['90', '1½ hr'], ['120', '2 hr'], ['150', '2½ hr'], ['180', '3 hr'],
+  ['240', '4 hr'], ['300', '5 hr'], ['360', '6 hr'], ['480', '8 hr'],
+  ['d1', 'All day'], ['d2', '2 days'], ['d3', '3 days'], ['d4', '4 days'], ['d5', '5 days'], ['d7', '1 week'],
+]
+export const lengthLabel = (len) => LENGTHS.find(([v]) => v === len)?.[1] || ''
+
+export function withLength(o, len = o.length || '') {
+  const base = { length: len, endDate: null, endTime: '' }
+  if (!len || !o.date) return base
+  if (len.startsWith('d')) {
+    const n = Number(len.slice(1))
+    return { ...base, endDate: n > 1 ? ymd(addDays(parseISO(o.date), n - 1)) : null }
+  }
+  if (!o.time) return base // an hour length needs a start time to have an end
+  const end = addMinutes(parseISO(`${o.date}T${o.time}`), Number(len))
+  const endDay = ymd(end)
+  return { ...base, endDate: endDay > o.date ? endDay : null, endTime: format(end, 'HH:mm') }
+}
+
+// For options saved before lengths existed: the matching length, if there is one.
+export function inferLength(o) {
+  if (o.length) return o.length
+  if (!o.endDate && !o.endTime) return ''
+  if (o.time && o.endTime) {
+    const mins = differenceInMinutes(parseISO(`${lastDay(o)}T${o.endTime}`), parseISO(`${o.date}T${o.time}`))
+    if (LENGTHS.some(([v]) => v === String(mins))) return String(mins)
+  }
+  if (!o.endTime) {
+    const days = String(spanDays(o).length)
+    if (LENGTHS.some(([v]) => v === 'd' + days)) return 'd' + days
+  }
+  return 'keep'
 }

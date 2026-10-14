@@ -5,7 +5,7 @@ import Votes, { agreed } from './Votes'
 import { useBackend } from '../lib/hooks'
 import { uid } from '../lib/store'
 import { openIcs } from '../lib/ics'
-import { fmtTime, isMulti, lastDay } from '../lib/when'
+import { LENGTHS, fmtTime, inferLength, isMulti, lastDay, withLength } from '../lib/when'
 
 const sortOpts = (o) => [...(o || [])].sort((x, y) => (x.date + (x.time || '')).localeCompare(y.date + (y.time || '')))
 const short = (d) => format(parseISO(d), 'EEE, MMM d')
@@ -19,7 +19,7 @@ export default function WhenBox({ a }) {
   const [mode, setMode] = useState(derived || 'booked')
   useEffect(() => { if (derived) setMode(derived) }, [derived])
   // the "add an option" fields live here so they survive switching modes
-  const [draft, setDraft] = useState({ date: '', time: '', endDate: '', endTime: '' })
+  const [draft, setDraft] = useState({ date: '', time: '', length: '' })
   const span = (o) => ({ date: o.date, time: o.time || '', endDate: o.endDate && o.endDate > o.date ? o.endDate : null, endTime: o.endTime || '' })
 
   // Choose = decided: book it and drop the other options.
@@ -33,18 +33,18 @@ export default function WhenBox({ a }) {
       const cur = span(a)
       const all = a.options || []
       const opts = a.bookedFrom && all.some((o) => o.id === a.bookedFrom)
-        ? all.map((o) => (o.id === a.bookedFrom ? { ...o, ...cur } : o))
+        ? all.map((o) => (o.id === a.bookedFrom ? { ...o, ...cur, length: '' } : o))
         : [{ id: uid(), ...cur }, ...all]
       save({ date: null, time: '', endDate: null, endTime: '', bookedFrom: null, options: opts })
     }
-    setDraft({ date: '', time: '', endDate: '', endTime: '' })
+    setDraft({ date: '', time: '', length: '' })
     setMode('maybe')
   }
   // Maybe -> Booked: book the favorite option (or the one typed in) but keep the rest saved.
   const toBooked = () => {
     if (mode === 'booked') return
     if (draft.date && !options.length) {
-      save(span(draft))
+      save(span({ ...draft, ...withLength(draft, draft.length) }))
     } else if (options.length) {
       const o = options.find(agreed) || options[0]
       save({ ...span(o), bookedFrom: o.id })
@@ -114,25 +114,26 @@ function MaybeOptions({ a, options, save, choose, draft, setDraft }) {
   const [k, setK] = useState(0)
   const start = draft.date || last?.date || ''
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }))
+  const edit = (o, patch) => save({ options: options.map((x) => (x.id === o.id ? patchOption(x, patch) : x)) })
   const add = () => {
     if (!start) return
-    save({ options: [...options, { id: uid(), date: start, time: draft.time, endDate: draft.endDate && draft.endDate > start ? draft.endDate : null, endTime: draft.endTime }] })
-    setDraft({ date: '', time: '', endDate: '', endTime: '' }); setK((n) => n + 1)
+    const o = { id: uid(), date: start, time: draft.time }
+    save({ options: [...options, { ...o, ...withLength(o, draft.length) }] })
+    // keep the date and length so the next alternate is just a new time
+    setDraft((d) => ({ ...d, date: start, time: '' })); setK((n) => n + 1)
   }
   return (
     <>
-      <p className="muted small">Add each date or time you’re choosing between. They show faded on the calendar until you choose one.</p>
+      <p className="muted small">Add each date and time you’re choosing between. They show faded on the calendar until you choose one.</p>
       {options.length > 0 && (
         <ul className="maybe-list">
           {options.map((o) => (
             <li key={o.id}>
-              <span className="maybe-when">
-                {short(o.date)}{isMulti(o) && <span className="maybe-thru"> – {short(lastDay(o))}</span>}
-                {o.endTime && <span className="muted">, until {fmtTime(o.endTime)}</span>}
-              </span>
+              <span className="maybe-when">{short(o.date)}</span>
+              <LengthSelect o={o} onChange={(length) => edit(o, { length })} />
               <div className="maybe-time">
                 <TimePicker label={`Time on ${format(parseISO(o.date), 'MMM d')}`} value={o.time || ''} emptyLabel="Any time"
-                  onChange={(t) => save({ options: options.map((x) => (x.id === o.id ? { ...x, time: t } : x)) })} />
+                  onChange={(time) => edit(o, { time })} />
               </div>
               <Votes activity={a} option={o} />
               <button type="button" className="btn small primary" onClick={() => choose(o)}>Choose</button>
@@ -146,28 +147,48 @@ function MaybeOptions({ a, options, save, choose, draft, setDraft }) {
       )}
       <div className="maybe-add">
         <div className="field">
-          <span>Starts</span>
-          <input type="date" value={start} onChange={(e) => set({ date: e.target.value })} aria-label="Possible start date" />
+          <span>Date</span>
+          <input type="date" value={start} onChange={(e) => set({ date: e.target.value })} aria-label="Possible date" />
         </div>
         <div className="field">
           <span>Time</span>
           <TimePicker key={k} label="Possible time" value={draft.time} onChange={(time) => set({ time })} emptyLabel="Any time" />
         </div>
         <div className="field">
-          <span>Through <span className="muted">(optional)</span></span>
-          <input type="date" value={draft.endDate} min={start || undefined} onChange={(e) => set({ endDate: e.target.value })} aria-label="Possible end date" />
-        </div>
-        <div className="field">
-          <span>End time <span className="muted">(optional)</span></span>
-          <TimePicker key={'e' + k} label="Possible end time" value={draft.endTime} onChange={(endTime) => set({ endTime })} emptyLabel="Optional" />
+          <span>Length <span className="muted">(optional)</span></span>
+          <select className="len-select" value={draft.length} onChange={(e) => set({ length: e.target.value })} aria-label="Possible length">
+            <option value="">Not sure</option>
+            {LENGTHS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
         </div>
         <button type="button" className="btn small" disabled={!start} onClick={add}>
-          {options.length ? 'Add another option' : 'Add option'}
+          {options.length ? '+ Add another date or time' : '+ Add this option'}
         </button>
       </div>
       {options.length > 0 && (
         <button type="button" className="link make-maybe" onClick={() => save({ options: [] })}>Not doing it, clear the options</button>
       )}
     </>
+  )
+}
+
+// A changed time or length re-works the end; options saved with a custom end keep it.
+function patchOption(o, patch) {
+  const next = { ...o, ...patch }
+  const len = 'length' in patch ? patch.length : o.length
+  if (len === 'keep') return o
+  if (len || 'length' in patch) return { ...next, ...withLength(next, len) }
+  return next
+}
+
+function LengthSelect({ o, onChange }) {
+  const cur = inferLength(o)
+  const custom = isMulti(o) ? `Thru ${short(lastDay(o))}${o.endTime ? `, ${fmtTime(o.endTime)}` : ''}` : o.endTime ? `Until ${fmtTime(o.endTime)}` : ''
+  return (
+    <select className="len-select small" value={cur} onChange={(e) => onChange(e.target.value)} aria-label={`Length on ${short(o.date)}`}>
+      <option value="">Length?</option>
+      {cur === 'keep' && <option value="keep">{custom}</option>}
+      {LENGTHS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+    </select>
   )
 }
