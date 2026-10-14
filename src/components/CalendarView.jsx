@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { dayInfo } from '../lib/holidays'
 import {
   addDays, addMonths, differenceInCalendarDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth,
   isToday, parseISO, startOfMonth, startOfWeek,
@@ -135,7 +136,18 @@ export default function CalendarView({ activities, busy = [], onOpen, onAdd, onB
 
             <section className="agenda" aria-live="polite">
               <div className="agenda-head">
-                <h2>{format(parseISO(selected), 'EEEE, MMMM d')}</h2>
+                <div>
+                  <h2>{format(parseISO(selected), 'EEEE, MMMM d')}</h2>
+                  {(() => {
+                    const { holidays, special } = dayInfo(selected)
+                    const marks = [...special, ...holidays]
+                    return marks.length > 0 && (
+                      <p className="day-marks">
+                        {marks.map((m) => <span key={m.name} className={special.includes(m) ? 'special' : ''}>{m.icon} {m.name}</span>)}
+                      </p>
+                    )
+                  })()}
+                </div>
                 <div className="row">
                   {ideas.length > 0 && <button className="btn small" onClick={() => setPicking(true)}>Pick an idea</button>}
                   <button className="btn small" onClick={() => onBusy({ date: selected })}>Mark busy</button>
@@ -242,18 +254,25 @@ function Day({ date, items, busy, maybes = [], inMonth, selected, onSelect, onOp
   const dow = date.getDay()
   const free = inMonth && (dow === 0 || dow === 6) && id >= ymd(new Date())
     && !items.length && !maybes.length && !busy.length
+  const { holidays, special } = dayInfo(id)
+  const marks = [...special, ...holidays]
   return (
     <div
       ref={setNodeRef}
       role="gridcell"
       aria-selected={selected}
-      className={`cal-day${inMonth ? '' : ' out'}${isToday(date) ? ' today' : ''}${selected ? ' sel' : ''}${isOver ? ' over' : ''}${free ? ' free' : ''}`}
+      className={`cal-day${inMonth ? '' : ' out'}${isToday(date) ? ' today' : ''}${selected ? ' sel' : ''}${isOver ? ' over' : ''}${free ? ' free' : ''}${special.length ? ' special' : ''}${holidays.length ? ' holiday' : ''}`}
       onClick={() => onSelect(id)}
     >
       <button className="cal-num" onClick={(e) => { e.stopPropagation(); onSelect(id) }}
-        aria-label={`${format(date, 'EEEE, MMMM d')}${items.length ? `, ${items.length} planned` : ''}${maybes.length ? `, ${maybes.length} maybe` : ''}${free ? ', you’re both free' : ''}${busy.length ? `, ${[...new Set(busy.map((b) => personOf(b.person).name))].join(' and ')} busy` : ''}`}>
+        aria-label={`${format(date, 'EEEE, MMMM d')}${items.length ? `, ${items.length} planned` : ''}${maybes.length ? `, ${maybes.length} maybe` : ''}${free ? ', you’re both free' : ''}${busy.length ? `, ${[...new Set(busy.map((b) => personOf(b.person).name))].join(' and ')} busy` : ''}${marks.map((m) => `, ${m.name}`).join('')}`}>
         {format(date, 'd')}
       </button>
+      {marks.length > 0 && (
+        <span className="cal-mark" aria-hidden="true" title={marks.map((m) => m.name).join(', ')}>
+          <i>{marks[0].icon}</i><b>{marks.map((m) => m.name).join(' · ')}</b>
+        </span>
+      )}
       {busy.length > 0 && (
         <div className="cal-busy" aria-hidden="true">
           {busy.slice(0, 3).map((b) => {
