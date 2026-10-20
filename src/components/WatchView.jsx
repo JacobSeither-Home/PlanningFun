@@ -198,12 +198,13 @@ function WatchRow({ item: i, onOpen, rowRef, style, handle, dragging }) {
       {handle
         ? <button type="button" className="watch-grip" {...handle} onClick={() => onOpen(i.id)}>{art}<span className="grip-dots" aria-hidden="true" /></button>
         : <button type="button" className="watch-grip static" tabIndex={-1} aria-hidden="true" onClick={() => onOpen(i.id)}>{art}</button>}
+      <label className={`watch-seen${i.watched ? ' on' : ''}`}>
+        <input type="checkbox" checked={!!i.watched} aria-label={`Watched ${i.title}`}
+          onChange={() => be.update('watch', i.id, { watched: !i.watched })} />
+        <span className="seen-box" aria-hidden="true" />
+        <span>Watched</span>
+      </label>
       <div className="check">
-        <label className="watch-box">
-          <input type="checkbox" checked={i.watched} aria-label={`Watched ${i.title}`}
-            onChange={() => be.update('watch', i.id, { watched: !i.watched })} />
-          <span className="box" aria-hidden="true" />
-        </label>
         <button type="button" className="check-text watch-title" onClick={() => onOpen(i.id)} aria-label={`${i.title}, details`}>
           {i.title}{i.year && <span className="watch-year"> {i.year}</span>}
           {i.genres?.length > 0 && <span className="watch-genres">{i.genres.slice(0, 3).join(' · ')}</span>}

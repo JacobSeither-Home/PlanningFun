@@ -691,7 +691,7 @@ button.vote { cursor: pointer; min-height: 30px; }
 /* watch list rows: dark "marquee" cards in both modes, poster down the full left edge */
 .watch-list .watch-row {
   --mq: #12392F;
-  display: grid; grid-template-columns: 64px minmax(0, 1fr) auto auto; grid-template-areas: "poster check where x";
+  display: grid; grid-template-columns: 64px minmax(0, 1fr) auto auto auto; grid-template-areas: "poster check where seen x";
   align-items: center; column-gap: 10px; row-gap: 2px;
   min-height: 96px; padding: 0 8px 0 0; overflow: hidden;
   background: linear-gradient(90deg, color-mix(in srgb, var(--m-a) 18%, var(--mq)), var(--mq) 55%);
@@ -730,7 +730,7 @@ button.vote { cursor: pointer; min-height: 30px; }
 .watch-genre { font: 400 20px var(--display); margin: 0 0 8px; color: var(--ink); }
 .watch-genres { display: block; font-size: 12.5px; font-weight: 500; color: #A9C9BC; margin-top: 2px; }
 .watch-poster.blank { display: grid; place-items: center; font-size: 26px; background: rgba(255, 255, 255, .07); }
-.watch-row .check { grid-area: check; min-width: 0; padding: 8px 0; }
+.watch-row .check { grid-area: check; min-width: 0; padding: 8px 0; display: flex; }
 .watch-row .check-text { color: #FCE7EE; overflow-wrap: anywhere; }
 .watch-year { color: var(--gold-hi); font-weight: 500; font-size: 14px; }
 .watch-row .box { border-color: var(--gold-hi); }
@@ -740,7 +740,7 @@ button.vote { cursor: pointer; min-height: 30px; }
 .watch-row .icon-btn { grid-area: x; color: #C9D9D2; }
 .watch-row .icon-btn:hover { background: rgba(255, 255, 255, .1); color: #fff; }
 @media (max-width: 520px) {
-  .watch-list .watch-row { grid-template-columns: 64px minmax(0, 1fr) auto; grid-template-areas: "poster check x" "poster where where"; padding-bottom: 10px; }
+  .watch-list .watch-row { grid-template-columns: 64px minmax(0, 1fr) auto auto; grid-template-areas: "poster check check x" "poster where seen seen"; padding-bottom: 10px; }
   .watch-row .check { padding: 10px 0 0; }
   .watch-row .where { width: auto; margin-right: 6px; }
 }
@@ -871,7 +871,17 @@ button.vote { cursor: pointer; min-height: 30px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* watch list: title opens details */
-.watch-box { position: relative; display: grid; place-items: center; flex: none; width: 40px; height: 40px; margin: 0 -6px 0 -8px; cursor: pointer; }
+.watch-seen {
+  grid-area: seen; position: relative; display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 14px 0 10px;
+  border-radius: 999px; cursor: pointer; white-space: nowrap; font-size: 14.5px; font-weight: 600; color: #FCE7EE;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--gold-hi) 80%, transparent);
+}
+.watch-seen input { position: absolute; opacity: 0; pointer-events: none; }
+.seen-box { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--gold-hi); display: grid; place-items: center; }
+.watch-seen.on { background: var(--gold-hi); color: #12392F; }
+.watch-seen.on .seen-box { border-color: #12392F; background: #12392F; }
+.watch-seen.on .seen-box::after { content: ''; width: 5px; height: 9px; margin-top: -2px; border: solid var(--gold-hi); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.watch-seen:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
 .watch-title { flex: 1; min-width: 0; padding: 4px 0; border: 0; background: none; text-align: left; cursor: pointer; font: inherit; font-weight: 600; }
 .watch-title:hover { text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 3px; }
 .watch-title:focus-visible { outline: 2px solid var(--gold-hi); outline-offset: 2px; border-radius: 4px; }
