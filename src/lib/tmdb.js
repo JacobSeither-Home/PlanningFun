@@ -16,11 +16,11 @@ async function get(key, path, params = {}) {
 }
 
 // Movies and shows matching a title, best first.
-export async function search(key, query) {
+export async function search(key, query, limit = 6) {
   const data = await get(key, '/search/multi', { query, include_adult: 'false', language: 'en-US', page: '1' })
   return (data.results || [])
     .filter((r) => r.media_type === 'movie' || r.media_type === 'tv')
-    .slice(0, 6)
+    .slice(0, limit)
     .map((r) => ({
       tmdbId: r.id,
       mediaType: r.media_type,
@@ -47,11 +47,27 @@ const GENRE_ALIAS = {
   'Science Fiction': 'Sci-Fi', 'Sci-Fi & Fantasy': 'Sci-Fi', 'Action & Adventure': 'Action',
   'War & Politics': 'War', 'TV Movie': 'Movie night',
 }
+const genreNames = (data) => [...new Set((data.genres || []).map((g) => GENRE_ALIAS[g.name] || g.name))]
 // Genre names for a title, e.g. ['Drama', 'Sci-Fi'].
 export async function genres(key, mediaType, id) {
-  const data = await get(key, `/${mediaType}/${id}`, { language: 'en-US' })
-  return [...new Set((data.genres || []).map((g) => GENRE_ALIAS[g.name] || g.name))]
+  return genreNames(await get(key, `/${mediaType}/${id}`, { language: 'en-US' }))
 }
+
+// Summary and facts for the details sheet.
+export async function info(key, mediaType, id) {
+  const d = await get(key, `/${mediaType}/${id}`, { language: 'en-US' })
+  const tv = mediaType === 'tv'
+  return {
+    overview: d.overview || '',
+    tagline: d.tagline || '',
+    genres: genreNames(d),
+    runtime: tv ? (d.episode_run_time || [])[0] || null : d.runtime || null,
+    seasons: tv ? d.number_of_seasons || null : null,
+    status: tv ? d.status || '' : '',
+    backdrop: d.backdrop_path || null,
+  }
+}
+export const tmdbUrl = (mediaType, id) => `https://www.themoviedb.org/${mediaType}/${id}`
 
 // Everything to store on a watch item for a chosen match.
 export async function details(key, match) {

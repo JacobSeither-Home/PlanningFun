@@ -6,6 +6,7 @@ import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities'
 import { useBackend } from '../lib/hooks'
 import { autoMatch, details, genres, poster, search } from '../lib/tmdb'
+import WatchSheet from './WatchSheet'
 
 // Our order: a dragged title gets a `rank`; anything never dragged uses -createdAt,
 // so new titles still land on top and existing lists keep their current order.
@@ -23,6 +24,8 @@ export default function WatchView({ items, onSurprise, tmdbKey }) {
   const [tab, setTab] = useState('todo')
   const [filter, setFilter] = useState('all')
   const [sort, setSortState] = useState(loadSort)
+  const [openId, setOpenId] = useState(null)
+  const opened = items.find((i) => i.id === openId)
   const setSort = (v) => { try { localStorage.setItem('pf:watchSort', v) } catch { /* private mode */ } setSortState(v) }
 
   // titles matched before genres were saved: fill them in quietly, once each
@@ -151,37 +154,38 @@ export default function WatchView({ items, onSurprise, tmdbKey }) {
           groups.map(([g, rows]) => (
             <section key={g} className="watch-group">
               <h2 className="watch-genre">{g} <span className="count">{rows.length}</span></h2>
-              <ul className="watch-list">{rows.map((i) => <WatchRow key={i.id} item={i} />)}</ul>
+              <ul className="watch-list">{rows.map((i) => <WatchRow key={i.id} item={i} onOpen={setOpenId} />)}</ul>
             </section>
           ))
         ) : draggable ? (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={list.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-              <ul className="watch-list">{list.map((i) => <SortableRow key={i.id} item={i} />)}</ul>
+              <ul className="watch-list">{list.map((i) => <SortableRow key={i.id} item={i} onOpen={setOpenId} />)}</ul>
             </SortableContext>
           </DndContext>
         ) : (
-          <ul className="watch-list">{list.map((i) => <WatchRow key={i.id} item={i} />)}</ul>
+          <ul className="watch-list">{list.map((i) => <WatchRow key={i.id} item={i} onOpen={setOpenId} />)}</ul>
         )
       ) : (
         <div className="empty">
           <p>{tab === 'todo' ? 'Nothing queued. Add a movie or show you both want to see.' : 'Nothing marked watched yet.'}</p>
         </div>
       )}
+      {opened && <WatchSheet item={opened} tmdbKey={tmdbKey} onClose={() => setOpenId(null)} />}
     </div>
   )
 }
 
-function SortableRow({ item }) {
+function SortableRow({ item, onOpen }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
   return (
-    <WatchRow item={item} rowRef={setNodeRef} dragging={isDragging}
+    <WatchRow item={item} onOpen={onOpen} rowRef={setNodeRef} dragging={isDragging}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       handle={{ ref: setActivatorNodeRef, ...attributes, ...listeners, 'aria-label': `Reorder ${item.title}`, 'aria-roledescription': 'sortable' }} />
   )
 }
 
-function WatchRow({ item: i, rowRef, style, handle, dragging }) {
+function WatchRow({ item: i, onOpen, rowRef, style, handle, dragging }) {
   const be = useBackend()
   const [where, setWhere] = useState(i.where || '')
   useEffect(() => setWhere(i.where || ''), [i.where])
@@ -192,14 +196,19 @@ function WatchRow({ item: i, rowRef, style, handle, dragging }) {
     <li ref={rowRef} style={style} className={`watch-row${i.watched ? ' is-done' : ''}${dragging ? ' is-dragging' : ''}`}>
       {/* poster runs the full height of the row, edge to edge; in Our order it's the drag handle */}
       {handle
-        ? <button type="button" className="watch-grip" {...handle}>{art}<span className="grip-dots" aria-hidden="true" /></button>
-        : art}
-      <label className="check">
-        <input type="checkbox" checked={i.watched} onChange={() => be.update('watch', i.id, { watched: !i.watched })} />
-        <span className="box" aria-hidden="true" />
-        <span className="check-text">{i.title}{i.year && <span className="watch-year"> {i.year}</span>}
-          {i.genres?.length > 0 && <span className="watch-genres">{i.genres.slice(0, 3).join(' · ')}</span>}</span>
-      </label>
+        ? <button type="button" className="watch-grip" {...handle} onClick={() => onOpen(i.id)}>{art}<span className="grip-dots" aria-hidden="true" /></button>
+        : <button type="button" className="watch-grip static" tabIndex={-1} aria-hidden="true" onClick={() => onOpen(i.id)}>{art}</button>}
+      <div className="check">
+        <label className="watch-box">
+          <input type="checkbox" checked={i.watched} aria-label={`Watched ${i.title}`}
+            onChange={() => be.update('watch', i.id, { watched: !i.watched })} />
+          <span className="box" aria-hidden="true" />
+        </label>
+        <button type="button" className="check-text watch-title" onClick={() => onOpen(i.id)} aria-label={`${i.title}, details`}>
+          {i.title}{i.year && <span className="watch-year"> {i.year}</span>}
+          {i.genres?.length > 0 && <span className="watch-genres">{i.genres.slice(0, 3).join(' · ')}</span>}
+        </button>
+      </div>
       <input className="where" value={where} placeholder="Where to watch" aria-label={`Where to watch ${i.title}`}
         onChange={(e) => setWhere(e.target.value)}
         onBlur={() => where !== (i.where || '') && be.update('watch', i.id, { where: where.trim() })}
