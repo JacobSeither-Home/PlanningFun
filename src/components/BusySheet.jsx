@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { format, parseISO } from 'date-fns'
+import DatePicker from './DatePicker'
+import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns'
 import Sheet from './Sheet'
 import TimePicker from './TimePicker'
 import { useBackend } from '../lib/hooks'
@@ -70,17 +71,18 @@ export default function BusySheet({ busy, date, onClose }) {
       </label>
 
       <div className="grid2">
-        <label className="field">
+        <div className="field">
           <span>From</span>
-          <input type="date" value={f.start} onChange={(e) => {
-            const start = e.target.value
-            set({ start, end: !f.end || f.end < start ? start : f.end })
+          <DatePicker label="Busy from" value={f.start} onChange={(start) => {
+            // keep the same number of days when the start moves
+            const len = f.start && f.end ? differenceInCalendarDays(parseISO(f.end), parseISO(f.start)) : 0
+            set({ start, end: format(addDays(parseISO(start), Math.max(0, len)), 'yyyy-MM-dd') })
           }} />
-        </label>
-        <label className="field">
+        </div>
+        <div className="field">
           <span>Through</span>
-          <input type="date" value={f.end} min={f.start} onChange={(e) => set({ end: e.target.value })} />
-        </label>
+          <DatePicker label="Busy through" value={f.end} min={f.start} openTo={f.start} mark={f.start} onChange={(end) => set({ end })} />
+        </div>
       </div>
 
       <div className="field">

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import DatePicker from './DatePicker'
 import { format } from 'date-fns'
 import Sheet from './Sheet'
 import { useBackend } from '../lib/hooks'
@@ -170,10 +171,10 @@ export default function DrinkSheet({ drink, drinks, kinds, initialKind, onClose 
         </fieldset>
 
         <div className="grid2">
-          <label className="field">
+          <div className="field">
             <span>Date</span>
-            <input type="date" value={f.date} onChange={set('date')} />
-          </label>
+            <DatePicker label="Date" value={f.date} onChange={(date) => set('date')({ target: { value: date } })} />
+          </div>
           <label className="field">
             <span>Price</span>
             <input type="number" inputMode="decimal" min="0" step="0.5" value={f.price} onChange={set('price')} placeholder="$" />

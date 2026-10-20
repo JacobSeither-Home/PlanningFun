@@ -691,20 +691,20 @@ button.vote { cursor: pointer; min-height: 30px; }
 /* watch list rows: dark "marquee" cards in both modes, poster down the full left edge */
 .watch-list .watch-row {
   --mq: #12392F;
-  display: grid; grid-template-columns: 64px minmax(0, 1fr) auto auto auto; grid-template-areas: "poster check where seen x";
-  align-items: center; column-gap: 10px; row-gap: 2px;
-  min-height: 96px; padding: 0 8px 0 0; overflow: hidden;
+  display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; grid-template-areas: "poster check x" "poster where seen";
+  grid-template-rows: 1fr auto; align-items: center; column-gap: 12px; row-gap: 6px;
+  min-height: 144px; padding-bottom: 10px; padding: 0 8px 0 0; overflow: hidden;
   background: linear-gradient(90deg, color-mix(in srgb, var(--m-a) 18%, var(--mq)), var(--mq) 55%);
   color: #FCE7EE; border-radius: var(--r-md);
   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--gold) 70%, transparent);
 }
 .watch-poster {
-  grid-area: poster; align-self: stretch; width: 64px; height: 100%; min-height: 96px; object-fit: cover; display: block;
+  grid-area: poster; align-self: stretch; width: 100%; height: 100%; min-height: 138px; object-fit: cover; display: block;
   box-shadow: 2px 0 0 color-mix(in srgb, var(--gold) 70%, transparent);
 }
 .watch-grip {
   grid-area: poster; align-self: stretch; position: relative; display: block; padding: 0; margin: 0; border: 0; border-radius: 0;
-  background: none; cursor: grab; touch-action: none; min-height: 96px;
+  background: none; cursor: grab; touch-action: none; min-height: 138px;
 }
 .watch-grip:focus-visible { outline: 3px solid var(--gold-hi); outline-offset: -3px; }
 .watch-grip .watch-poster { height: 100%; }
@@ -730,19 +730,19 @@ button.vote { cursor: pointer; min-height: 30px; }
 .watch-genre { font: 400 20px var(--display); margin: 0 0 8px; color: var(--ink); }
 .watch-genres { display: block; font-size: 12.5px; font-weight: 500; color: #A9C9BC; margin-top: 2px; }
 .watch-poster.blank { display: grid; place-items: center; font-size: 26px; background: rgba(255, 255, 255, .07); }
-.watch-row .check { grid-area: check; min-width: 0; padding: 8px 0; display: flex; }
+.watch-row .check { grid-area: check; align-self: start; min-width: 0; padding: 12px 0 0; display: flex; }
 .watch-row .check-text { color: #FCE7EE; overflow-wrap: anywhere; }
 .watch-year { color: var(--gold-hi); font-weight: 500; font-size: 14px; }
 .watch-row .box { border-color: var(--gold-hi); }
 .watch-row.is-done .check-text { color: #B9C9C2; }
-.watch-row .where { grid-area: where; width: 160px; background: rgba(255, 255, 255, .09) !important; color: #FCE7EE; }
+.watch-row .where { grid-area: where; width: 100%; max-width: 280px; background: rgba(255, 255, 255, .09) !important; color: #FCE7EE; }
 .watch-row .where::placeholder { color: #A9C9BC; }
-.watch-row .icon-btn { grid-area: x; color: #C9D9D2; }
+.watch-row .icon-btn { grid-area: x; align-self: start; justify-self: end; margin-top: 6px; color: #C9D9D2; }
 .watch-row .icon-btn:hover { background: rgba(255, 255, 255, .1); color: #fff; }
 @media (max-width: 520px) {
-  .watch-list .watch-row { grid-template-columns: 64px minmax(0, 1fr) auto auto; grid-template-areas: "poster check check x" "poster where seen seen"; padding-bottom: 10px; }
-  .watch-row .check { padding: 10px 0 0; }
-  .watch-row .where { width: auto; margin-right: 6px; }
+  .watch-list .watch-row { grid-template-columns: 92px minmax(0, 1fr) auto; min-height: 138px; }
+  .watch-row .where { max-width: none; }
+  .watch-seen { padding: 0 12px 0 9px; }
 }
 
 .check-text { font-weight: 600; }
@@ -872,7 +872,7 @@ button.vote { cursor: pointer; min-height: 30px; }
 
 /* watch list: title opens details */
 .watch-seen {
-  grid-area: seen; position: relative; display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 14px 0 10px;
+  grid-area: seen; align-self: end; position: relative; display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 14px 0 10px;
   border-radius: 999px; cursor: pointer; white-space: nowrap; font-size: 14.5px; font-weight: 600; color: #FCE7EE;
   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--gold-hi) 80%, transparent);
 }
@@ -908,3 +908,23 @@ button.vote { cursor: pointer; min-height: 30px; }
 .ws-hits img, .ws-hits .poster-blank { flex: none; width: 40px; height: 60px; border-radius: 4px; object-fit: cover; }
 .ws-current { display: block; font-size: 12.5px; font-weight: 700; color: var(--flamingo); }
 @media (max-width: 420px) { .ws-head { grid-template-columns: 92px minmax(0, 1fr); } .ws-poster { width: 92px; } }
+
+/* date picker (tap-only, like the time picker) */
+.dp-panel { min-width: 264px; max-width: 360px; }
+.dp-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.dp-head b { font: 400 17px var(--display); color: var(--ink); }
+.dp-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.dp-dow { text-align: center; font-size: 12px; font-weight: 700; color: var(--ink-2); padding-bottom: 2px; }
+.dp-grid button {
+  aspect-ratio: 1; min-height: 36px; border: 0; border-radius: 50%; background: none; cursor: pointer;
+  font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink);
+}
+.dp-grid button.out { color: var(--ink-2); opacity: .55; }
+.dp-grid button.today { box-shadow: inset 0 0 0 1.5px var(--m-a); }
+.dp-grid button.mark { background: color-mix(in srgb, var(--gold) 28%, transparent); }
+.dp-grid button[aria-pressed=true] { background: var(--m-a); color: #fff; box-shadow: inset 0 0 0 1.5px var(--gold-hi); }
+.dp-grid button:disabled { opacity: .25; cursor: default; }
+.dp-grid button:hover:not(:disabled):not([aria-pressed=true]) { background: var(--sunken); }
+/* an open picker takes the full row so the calendar has room */
+.when-grid .field:has(.dp-panel), .grid2 .field:has(.dp-panel), .maybe-add .field:has(.dp-panel),
+.when-grid .field:has(.tp-panel), .grid2 .field:has(.tp-panel) { grid-column: 1 / -1; }

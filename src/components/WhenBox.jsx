@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { format, parseISO } from 'date-fns'
+import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns'
 import TimePicker from './TimePicker'
+import DatePicker from './DatePicker'
 import Votes, { agreed } from './Votes'
 import { useBackend } from '../lib/hooks'
 import { uid } from '../lib/store'
@@ -67,12 +68,12 @@ export default function WhenBox({ a }) {
         <>
           <div className="when-grid">
             <div className="field">
-              <label htmlFor="when-start">Starts</label>
-              <input id="when-start" type="date" value={a.date || ''} onChange={(e) => {
-                const v = e.target.value || null
-                save(v
-                  ? { date: v, ...(a.endDate && a.endDate <= v ? { endDate: null } : {}) }
-                  : { date: null, time: '', endDate: null, endTime: '' })
+              <span>Starts</span>
+              <DatePicker label="Start date" value={a.date || ''} clearable emptyLabel="Pick a date" onChange={(v) => {
+                if (!v) { save({ date: null, time: '', endDate: null, endTime: '' }); return }
+                // moving the start moves a multi-day end with it, so the length stays the same
+                const len = a.date && isMulti(a) ? differenceInCalendarDays(parseISO(a.endDate), parseISO(a.date)) : 0
+                save({ date: v, endDate: len > 0 ? format(addDays(parseISO(v), len), 'yyyy-MM-dd') : null })
               }} />
             </div>
             <div className="field">
@@ -81,9 +82,10 @@ export default function WhenBox({ a }) {
                 emptyLabel={a.date ? 'Any time' : 'Pick a date first'} onChange={(time) => save({ time })} />
             </div>
             <div className="field">
-              <label htmlFor="when-end">Ends <span className="muted">(for multi-day)</span></label>
-              <input id="when-end" type="date" value={a.endDate || ''} min={a.date || undefined} disabled={!a.date}
-                onChange={(e) => { const v = e.target.value; save({ endDate: v && v > a.date ? v : null }) }} />
+              <span>Ends <span className="muted">(for multi-day)</span></span>
+              <DatePicker label="End date" value={a.endDate || ''} disabled={!a.date} clearable emptyLabel={a.date ? 'Same day' : 'Pick a start first'}
+                min={a.date ? format(addDays(parseISO(a.date), 1), 'yyyy-MM-dd') : undefined} openTo={a.date || undefined} mark={a.date || undefined}
+                onChange={(v) => save({ endDate: v && v > a.date ? v : null })} />
             </div>
             <div className="field">
               <span>End time</span>
@@ -148,7 +150,7 @@ function MaybeOptions({ a, options, save, choose, draft, setDraft }) {
       <div className="maybe-add">
         <div className="field">
           <span>Date</span>
-          <input type="date" value={start} onChange={(e) => set({ date: e.target.value })} aria-label="Possible date" />
+          <DatePicker label="Possible date" value={start} onChange={(date) => set({ date })} />
         </div>
         <div className="field">
           <span>Time</span>
