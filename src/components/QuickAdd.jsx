@@ -4,9 +4,10 @@ import Sheet from './Sheet'
 import { useBackend } from '../lib/hooks'
 import { CATEGORIES } from '../lib/constants'
 import { autoMatch } from '../lib/tmdb'
+import { hintsFor, journalDay, ratingOf } from '../lib/journal'
 
 // Fast add: type, pick a category, Enter. Stays open so you can add several.
-export default function QuickAdd({ initial, onClose, onCreated, tmdbKey }) {
+export default function QuickAdd({ initial, onClose, onCreated, tmdbKey, activities = [] }) {
   const be = useBackend()
   const [kind, setKind] = useState(initial.kind)
   const [title, setTitle] = useState('')
@@ -54,6 +55,8 @@ export default function QuickAdd({ initial, onClose, onCreated, tmdbKey }) {
           enterKeyHint="done"
         />
 
+        {kind === 'idea' && <PastHints activities={activities} title={title} date={initial.date} />}
+
         {kind === 'idea' ? (
           <div className="chips" role="radiogroup" aria-label="Category">
             {CATEGORIES.map((c) => (
@@ -95,5 +98,30 @@ export default function QuickAdd({ initial, onClose, onCreated, tmdbKey }) {
         )}
       </form>
     </Sheet>
+  )
+}
+
+// A quiet reminder when what's being added looks like something we already went to.
+function PastHints({ activities, title, date }) {
+  const { byName, byDate } = hintsFor(activities, title, date)
+  if (!byName.length && !byDate.length) return null
+  const line = (x, lead) => {
+    const r = ratingOf(x.rating)
+    const d = journalDay(x)
+    return (
+      <li key={x.id}>
+        <span>{lead} <b>{x.title}</b>{d && <> on {format(parseISO(d), 'MMM d, yyyy')}</>}{r && <> · {r.icon} {r.label}</>}</span>
+        {x.journalNotes && <span className="hint-notes">{x.journalNotes}</span>}
+      </li>
+    )
+  }
+  return (
+    <ul className="past-hints" aria-live="polite">
+      {byName.map((x) => line(x, 'You went to'))}
+      {byDate.map((x) => {
+        const y = journalDay(x).slice(0, 4)
+        return line(x, `Around this time ${Number(date.slice(0, 4)) - Number(y) === 1 ? 'last year' : `in ${y}`}, you went to`)
+      })}
+    </ul>
   )
 }

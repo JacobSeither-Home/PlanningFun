@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { dayInfo } from '../lib/holidays'
+import { maybeExpired } from '../lib/journal'
 import {
   addDays, addMonths, differenceInCalendarDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth,
   isToday, parseISO, startOfMonth, startOfWeek,
@@ -74,7 +75,7 @@ export default function CalendarView({ activities, busy = [], onOpen, onAdd, onB
     return m
   }, [busy])
 
-  const ideas = activities.filter((a) => !a.date && !a.done)
+  const ideas = activities.filter((a) => !a.date && !a.done && !maybeExpired(a))
     .sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0))
   // drag ids are "<activity id>@<day it was picked up from>" so a multi-day plan can be grabbed on any day
   const dragAct = dragId ? activities.find((a) => a.id === String(dragId).split('@')[0]) : null
@@ -261,7 +262,7 @@ function Day({ date, items, busy, maybes = [], inMonth, selected, onSelect, onOp
       ref={setNodeRef}
       role="gridcell"
       aria-selected={selected}
-      className={`cal-day${inMonth ? '' : ' out'}${isToday(date) ? ' today' : ''}${selected ? ' sel' : ''}${isOver ? ' over' : ''}${free ? ' free' : ''}${special.length ? ' special' : ''}${holidays.length ? ' holiday' : ''}`}
+      className={`cal-day${inMonth ? '' : ' out'}${isToday(date) ? ' today' : ''}${selected ? ' sel' : ''}${isOver ? ' over' : ''}${free ? ' free' : ''}${special.length ? ' special' : ''}${holidays.length ? ' holiday' : ''}${id < ymd(new Date()) ? ' past' : ''}`}
       onClick={() => onSelect(id)}
     >
       <button className="cal-num" onClick={(e) => { e.stopPropagation(); onSelect(id) }}

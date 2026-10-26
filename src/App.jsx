@@ -169,7 +169,7 @@ function Shell({ user }) {
       </button>
 
       {adding && (
-        <QuickAdd
+        <QuickAdd activities={activities}
           tmdbKey={settings.tmdbKey || ''}
           initial={adding}
           onClose={() => setAdding(null)}
@@ -198,7 +198,7 @@ function Shell({ user }) {
         <SettingsSheet user={user} monthColors={monthColors} setMonthColors={setMonthColors} appearance={appearance} setAppearance={setAppearance}
           templates={templates} settings={settings} watch={watch} drinks={drinks} onClose={() => setShowSettings(false)} />
       )}
-      {open && <ActivitySheet templates={templates} activity={open} onClose={() => setOpenId(null)} onOpen={setOpenId} />}
+      {open && <ActivitySheet templates={templates} activity={open} activities={activities} onClose={() => setOpenId(null)} onOpen={setOpenId} />}
       {surprise && (
         <Surprise
           {...surprise}

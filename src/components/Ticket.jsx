@@ -1,18 +1,20 @@
 import { format, parseISO } from 'date-fns'
 import { catOf, COST } from '../lib/constants'
 import { spanText } from '../lib/when'
+import { ratingOf } from '../lib/journal'
 
 // An activity drawn as a ticket stub. The stub color is the category.
-export default function Ticket({ activity: a, onOpen, compact, dragProps, dragging, ghost, extra }) {
+export default function Ticket({ activity: a, onOpen, compact, dragProps, dragging, ghost, extra, journal }) {
   const cat = catOf(a.category)
   const items = a.items || []
   const left = items.filter((i) => !i.done).length
   const options = !a.date ? (a.options || []) : []
-  const maybe = ghost || options.length > 0
+  const maybe = !journal && (ghost || options.length > 0)
+  const rated = ratingOf(a.rating)
   return (
     <button
       type="button"
-      className={`ticket${compact ? ' compact' : ''}${a.done ? ' done' : ''}${dragging ? ' dragging' : ''}${maybe ? ' maybe' : ''}${extra ? ' ' + extra : ''}`}
+      className={`ticket${compact ? ' compact' : ''}${a.went === false || (a.done && a.went == null && !journal) ? ' done' : ''}${journal ? ' journal' : ''}${dragging ? ' dragging' : ''}${maybe ? ' maybe' : ''}${extra ? ' ' + extra : ''}`}
       style={{ '--cat': cat.color }}
       onClick={() => onOpen?.(a.id)}
       {...dragProps}
@@ -22,12 +24,16 @@ export default function Ticket({ activity: a, onOpen, compact, dragProps, draggi
         <span className="ticket-title">{maybe && !compact && <span className="maybe-tag">Maybe</span>}{a.title}</span>
         {!compact && (
           <span className="ticket-meta">
+            {journal && (a.went === true
+              ? <span className="j-badge went">✓ We went{rated ? ` · ${rated.icon} ${rated.label}` : ''}</span>
+              : a.went === false ? <span className="j-badge">Didn’t go</span>
+              : <span className="j-badge ask">Did you go?</span>)}
             {a.date && <span>{spanText(a)}</span>}
             {!a.date && !options.length && <span>{cat.label}</span>}
             {options.length > 0 && <span>{optionsText(options)}</span>}
             {a.location && <span>{a.location}</span>}
             {a.cost != null && a.cost !== '' && <span>{COST[a.cost]}</span>}
-            {items.length > 0 && <span>{left ? `${left} to do` : 'All set'}</span>}
+            {!journal && items.length > 0 && <span>{left ? `${left} to do` : 'All set'}</span>}
           </span>
         )}
       </span>

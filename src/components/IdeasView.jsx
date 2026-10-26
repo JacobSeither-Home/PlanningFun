@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { format, parseISO, isBefore, startOfToday } from 'date-fns'
 import Ticket from './Ticket'
 import { CATEGORIES } from '../lib/constants'
+import { inJournal, journalDay, maybeExpired } from '../lib/journal'
 
 export default function IdeasView({ activities, onOpen, onSurprise }) {
   const [q, setQ] = useState('')
@@ -16,18 +17,19 @@ export default function IdeasView({ activities, onOpen, onSurprise }) {
 
   const { upcoming, maybes, ideas, done } = useMemo(() => {
     const m = activities.filter(match)
+    const live = m.filter((a) => !inJournal(a))
     return {
-      upcoming: m.filter((a) => a.date && !a.done && !isBefore(parseISO(lastDay(a)), today))
+      upcoming: live.filter((a) => a.date)
         .sort((x, y) => (x.date + (x.time || '')).localeCompare(y.date + (y.time || ''))),
-      maybes: m.filter((a) => !a.date && !a.done && a.options?.length)
+      maybes: live.filter((a) => !a.date && a.options?.length)
         .sort((x, y) => firstOpt(x).localeCompare(firstOpt(y))),
-      ideas: m.filter((a) => !a.date && !a.done && !a.options?.length).sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0)),
-      done: m.filter((a) => a.done || (a.date && isBefore(parseISO(lastDay(a)), today)))
-        .sort((x, y) => (y.date || '').localeCompare(x.date || '')),
+      ideas: live.filter((a) => !a.date && !a.options?.length).sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0)),
+      done: m.filter((a) => inJournal(a)).sort((x, y) => journalDay(y).localeCompare(journalDay(x))),
     }
   }, [activities, q, cat])
+  const toAnswer = done.filter((a) => a.went == null).length
 
-  const unplanned = activities.filter((a) => !a.date && !a.done)
+  const unplanned = activities.filter((a) => !a.date && !a.done && !maybeExpired(a))
 
   return (
     <div className="view">
@@ -91,11 +93,12 @@ export default function IdeasView({ activities, onOpen, onSurprise }) {
       {done.length > 0 && (
         <section className="group">
           <button className="disclose" aria-expanded={showDone} onClick={() => setShowDone(!showDone)}>
-            <h2>Done and past <span className="muted">{done.length}</span></h2>
+            <h2>Our journal <span className="muted">{done.length}</span>
+              {toAnswer > 0 && <span className="journal-ask">{toAnswer} to check off</span>}</h2>
           </button>
           {showDone && (
             <div className="tickets">
-              {done.map((a) => <Ticket key={a.id} activity={{ ...a, done: true }} onOpen={onOpen} />)}
+              {done.map((a) => <Ticket key={a.id} activity={a} onOpen={onOpen} journal />)}
             </div>
           )}
         </section>

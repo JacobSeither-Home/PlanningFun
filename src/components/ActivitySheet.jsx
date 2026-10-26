@@ -4,9 +4,11 @@ import WhenBox from './WhenBox'
 import { useBackend } from '../lib/hooks'
 import { uid } from '../lib/store'
 import { CATEGORIES, SECTIONS, COST, catOf } from '../lib/constants'
+import { RATINGS, inJournal, journalDay, pastVisits, ratingOf } from '../lib/journal'
+import { format, parseISO } from 'date-fns'
 
 // Full detail for one activity. Every change saves right away.
-export default function ActivitySheet({ activity: a, onClose, onOpen, templates = [] }) {
+export default function ActivitySheet({ activity: a, activities = [], onClose, onOpen, templates = [] }) {
   const be = useBackend()
   const save = (patch) => be.update('activities', a.id, patch)
   const cat = catOf(a.category)
@@ -40,9 +42,13 @@ export default function ActivitySheet({ activity: a, onClose, onOpen, templates 
                 })
                 onOpen(id)
               }}>Duplicate</button>
-              <button className={`btn ${a.done ? 'ghost' : 'primary'}`} onClick={() => save({ done: !a.done })}>
-                {a.done ? 'Mark not done' : 'Mark done'}
-              </button>
+              {!inJournal(a) && (
+                <button className="btn primary" onClick={() => save({
+                  done: true, went: true,
+                  // an undated idea we just did lands in the journal on today's date
+                  ...(!a.date && !(a.options || []).length ? { date: format(new Date(), 'yyyy-MM-dd') } : {}),
+                })}>✓ We went</button>
+              )}
             </>
           )}
         </>
@@ -53,6 +59,9 @@ export default function ActivitySheet({ activity: a, onClose, onOpen, templates 
         <TextField id="activity-title" className="detail-title" value={a.title} multiline rows={1} enterSaves
           onSave={(v) => v.trim() && save({ title: v.trim().replace(/\s*\n\s*/g, ' ') })} aria-label="Title" />
       </div>
+
+      {inJournal(a) && <JournalBox a={a} save={save} />}
+      <LastTime visits={pastVisits(activities, a)} title={a.title} onOpen={onOpen} />
 
       <WhenBox a={a} />
 
@@ -115,6 +124,71 @@ export default function ActivitySheet({ activity: a, onClose, onOpen, templates 
         />
       </section>
     </Sheet>
+  )
+}
+
+// After the date passes (or once marked done): did we go, how was it, notes for next time.
+function JournalBox({ a, save }) {
+  return (
+    <section className="journal-box" aria-label="Journal">
+      <div className="when-head">
+        <h3>How was it?</h3>
+        <div className="seg small" role="radiogroup" aria-label="Did you go">
+          <button type="button" role="radio" aria-checked={a.went === true} onClick={() => save({ went: true, done: true })}>✓ We went</button>
+          <button type="button" role="radio" aria-checked={a.went === false} onClick={() => save({ went: false, done: true })}>Didn’t go</button>
+        </div>
+      </div>
+      {a.went === true && (
+        <>
+          <div className="chips rate" role="radiogroup" aria-label="Rating">
+            {RATINGS.map((r) => (
+              <button key={r.id} type="button" className="chip" role="radio" aria-checked={a.rating === r.id}
+                onClick={() => save({ rating: a.rating === r.id ? null : r.id })}>
+                <span aria-hidden="true">{r.icon}</span> {r.label}
+              </button>
+            ))}
+          </div>
+          <label className="field">
+            <span>Notes for next time</span>
+            <TextField multiline rows={2} value={a.journalNotes || ''} onSave={(v) => save({ journalNotes: v })}
+              placeholder="Best seats, what to order, park on the side street…" />
+          </label>
+        </>
+      )}
+      {a.went == null && <p className="muted small">Check it off to keep it in your journal. If it comes up again, you’ll see how it went.</p>}
+      {a.done && a.date && journalDay(a) >= format(new Date(), 'yyyy-MM-dd') && (
+        <button type="button" className="link" onClick={() => save({ done: false, went: null, rating: null })}>Not yet, move it back to Coming up</button>
+      )}
+      {a.done && !a.date && !(a.options || []).length && (
+        <button type="button" className="link" onClick={() => save({ done: false, went: null, rating: null })}>Move it back to Someday</button>
+      )}
+    </section>
+  )
+}
+
+// Other times we did the same thing.
+function LastTime({ visits, title, onOpen }) {
+  if (!visits.length) return null
+  return (
+    <section className="last-time" aria-label="Last time">
+      <h3>{visits.length === 1 ? 'Last time' : `You’ve been ${visits.length} times`}</h3>
+      <ul>
+        {visits.slice(0, 3).map((v) => {
+          const r = ratingOf(v.rating)
+          const day = journalDay(v)
+          return (
+            <li key={v.id}>
+              <button type="button" className="last-row" onClick={() => onOpen(v.id)}>
+                <b>{day ? format(parseISO(day), 'MMM d, yyyy') : 'Went'}</b>
+                {v.title.trim().toLowerCase() !== title.trim().toLowerCase() && <span>, {v.title}</span>}
+                {r && <span> · {r.icon} {r.label}</span>}
+                {v.journalNotes && <span className="last-notes">{v.journalNotes}</span>}
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
 
